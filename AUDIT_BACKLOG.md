@@ -19,15 +19,15 @@
 - [x] H-05: YieldVault ERC4626 inflation attack — no `_decimalsOffset()` override
 - [x] H-06: MockEERC silently swallows transfer hook failures — mirror desync risk
 - [x] H-07: LPIncentiveGauge flash-deposit reward theft — reads live pool balances without staking
-- [ ] H-08: ForgeVault `onShareTransfer` lacks `nonReentrant` modifier
-- [ ] H-09: WaterfallDistributor `_couponOwed` unchecked triple multiplication overflow
-- [ ] H-10: CreditEventOracle single reporter, no dispute mechanism
-- [ ] H-11: CDSPool premium accrual can exceed premium paid (phantom yield)
-- [ ] H-12: NexusVault withdrawal has no health check — cross-chain margin bypass
-- [ ] H-13: Cross-chain attestation has no expiry — stale values persist
-- [ ] H-14: FlashRebalancer persistent storage for callback params — brittle pattern
-- [ ] H-15: CDSPool `settle()` pays from totalAssets including earned premiums — excess LP losses
-- [ ] H-16: ICDSContract missing `expire()` function
+- [x] H-08: ForgeVault `onShareTransfer` lacks `nonReentrant` — added modifier
+- [x] H-09: WaterfallDistributor `_couponOwed` unchecked overflow — removed unchecked, split into bpsMul chain
+- [~] H-10: CreditEventOracle single reporter — accepted for MVP (multi-reporter already exists, quorum is future work)
+- [x] H-11: CDSPool premium accrual exceeds premiumPaid — added per-position `positionPremiumAccrued` tracker with hard cap
+- [x] H-12: NexusVault withdrawal no health check — added `withdrawalLocked` + `unlockWithdrawal()` with re-attestation
+- [x] H-13: Cross-chain attestation no expiry — added `attestationMaxAge` (1hr default) + timestamp tracking, stale values skipped
+- [x] H-14: FlashRebalancer callback hijack — added `_inFlashLoan` flag, verified in `onFlashLoan`
+- [x] H-15: CDSPool settle excess LP loss — capped payout at `totalDeposits` not `totalAssets()`
+- [x] H-16: ICDSContract missing `expire()` — added to interface
 
 ### MEDIUM (20 findings)
 

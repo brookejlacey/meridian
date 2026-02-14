@@ -145,8 +145,10 @@ library WaterfallDistributor {
     ) private pure returns (uint256 owed) {
         if (tranche.totalShares == 0 || tranche.targetApr == 0) return 0;
         // owed = depositValue * targetApr/BPS * periodBps/BPS
-        unchecked {
-            owed = (tranche.depositValue * tranche.targetApr * periodBps) / (MeridianMath.BPS * MeridianMath.BPS);
-        }
+        // Split to prevent triple-multiply overflow for large deposits
+        owed = MeridianMath.bpsMul(
+            MeridianMath.bpsMul(tranche.depositValue, tranche.targetApr),
+            periodBps
+        );
     }
 }

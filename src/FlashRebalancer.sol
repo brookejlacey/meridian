@@ -34,6 +34,7 @@ contract FlashRebalancer is IFlashBorrower, ReentrancyGuard {
         uint256 amount;
     }
     RebalanceParams private _pending;
+    bool private _inFlashLoan;
 
     event Rebalanced(
         address indexed user,
@@ -77,9 +78,13 @@ contract FlashRebalancer is IFlashBorrower, ReentrancyGuard {
             toTranche: toTranche,
             amount: amount
         });
+        _inFlashLoan = true;
 
         // Initiate flash loan
         FLASH_LENDER.flashLoan(underlying, amount, "");
+
+        // Clear flag after flash loan completes
+        _inFlashLoan = false;
     }
 
     /// @notice Flash loan callback — executes the rebalance
@@ -91,6 +96,7 @@ contract FlashRebalancer is IFlashBorrower, ReentrancyGuard {
         bytes calldata /* data */
     ) external override {
         require(msg.sender == address(FLASH_LENDER), "FlashRebalancer: not lender");
+        require(_inFlashLoan, "FlashRebalancer: not in flash loan");
 
         RebalanceParams memory p = _pending;
         require(p.vault != address(0), "FlashRebalancer: no pending");

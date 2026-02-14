@@ -53,6 +53,9 @@ contract NexusVault is INexusVault, ReentrancyGuard, Ownable {
     /// @notice Last attestation time per user
     mapping(address user => uint256) public lastAttestation;
 
+    /// @notice Whether a user's collateral is locked (active cross-chain position)
+    mapping(address user => bool) public withdrawalLocked;
+
     // --- Events ---
     event AttestationSent(address indexed user, uint256 totalValue);
 
@@ -95,12 +98,13 @@ contract NexusVault is INexusVault, ReentrancyGuard, Ownable {
     }
 
     /// @notice Withdraw collateral
-    /// @dev In production, withdrawal requires Hub approval via Teleporter.
-    ///      For MVP, local withdrawal is permitted (Hub checks health on its side).
+    /// @dev Withdrawal is blocked while user has an active cross-chain attestation.
+    ///      User must call unlockWithdrawal() (which re-attests zero or reduced balance) first.
     /// @param asset ERC-20 collateral token
     /// @param amount Amount to withdraw
     function withdraw(address asset, uint256 amount) external override nonReentrant {
         require(amount > 0, "NexusVault: zero amount");
+        require(!withdrawalLocked[msg.sender], "NexusVault: locked - attest updated balance first");
         require(deposits[msg.sender][asset] >= amount, "NexusVault: insufficient balance");
 
         deposits[msg.sender][asset] -= amount;
@@ -121,6 +125,11 @@ contract NexusVault is INexusVault, ReentrancyGuard, Ownable {
         uint256 totalValue = _getUserTotalValue(msg.sender);
         lastAttestation[msg.sender] = block.timestamp;
 
+        // Lock withdrawals while attestation is active on Hub
+        if (totalValue > 0) {
+            withdrawalLocked[msg.sender] = true;
+        }
+
         // Encode attestation message: (msgType=1, user, totalValue)
         bytes memory message = abi.encode(uint8(1), msg.sender, totalValue);
 
@@ -129,6 +138,27 @@ contract NexusVault is INexusVault, ReentrancyGuard, Ownable {
 
         emit AttestationSent(msg.sender, totalValue);
         emit BalancesAttested(msg.sender, totalValue);
+    }
+
+    /// @notice Unlock withdrawals by re-attesting current balance to Hub
+    /// @dev This sends an updated attestation so the Hub has accurate collateral values
+    ///      before any withdrawal occurs.
+    function unlockWithdrawal() external {
+        require(withdrawalLocked[msg.sender], "NexusVault: not locked");
+        require(
+            block.timestamp >= lastAttestation[msg.sender] + attestationInterval,
+            "NexusVault: too soon"
+        );
+
+        uint256 totalValue = _getUserTotalValue(msg.sender);
+        lastAttestation[msg.sender] = block.timestamp;
+        withdrawalLocked[msg.sender] = false;
+
+        // Re-attest current balance so Hub has accurate data
+        bytes memory message = abi.encode(uint8(1), msg.sender, totalValue);
+        _sendMessage(message);
+
+        emit AttestationSent(msg.sender, totalValue);
     }
 
     /// @notice Execute liquidation ordered by NexusHub

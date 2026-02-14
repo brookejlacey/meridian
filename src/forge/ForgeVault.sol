@@ -310,7 +310,7 @@ contract ForgeVault is IForgeVault, ReentrancyGuard {
 
     /// @notice Called by TrancheToken when shares are transferred on secondary market.
     /// @dev Keeps plaintext mirrors in sync. Must settle yield for BOTH parties.
-    function onShareTransfer(address from, address to, uint256 amount) external {
+    function onShareTransfer(address from, address to, uint256 amount) external nonReentrant {
         // Find which tranche this token belongs to
         uint8 trancheId = _getTrancheIdForToken(msg.sender);
 

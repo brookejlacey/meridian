@@ -54,6 +54,7 @@ contract CDSPool is ICDSPool, ReentrancyGuard {
 
     // Premium tracking
     uint256 public lastAccrualTime;
+    mapping(uint256 posId => uint256 accrued) public positionPremiumAccrued;
 
     // --- Modifiers ---
     modifier onlyActive() {
@@ -308,9 +309,10 @@ contract CDSPool is ICDSPool, ReentrancyGuard {
             ProtectionPosition storage pos = positions[posId];
             if (!pos.active) { unchecked { ++i; } continue; }
 
-            // Payout = notional * lossRate
+            // Payout = notional * lossRate, capped at LP deposits (not earned premiums)
             uint256 payout = MeridianMath.wadMul(pos.notional, lossRateWad);
-            payout = payout.min(totalAssets() - totalPayout); // Cap at available
+            uint256 available = totalDeposits > totalPayout ? totalDeposits - totalPayout : 0;
+            payout = payout.min(available);
 
             if (payout > 0) {
                 collateralToken.safeTransfer(pos.buyer, payout);
@@ -498,19 +500,13 @@ contract CDSPool is ICDSPool, ReentrancyGuard {
             uint256 accrued = MeridianMath.wadMul(pos.notional, pos.spreadWad);
             unchecked { accrued = accrued * elapsed / YEAR; }
 
-            // Cap at remaining premium deposit
-            uint256 totalTenor = terms.maturity - pos.startTime;
-            uint256 totalElapsed = currentTime - pos.startTime;
-            uint256 maxEarned = totalTenor > 0
-                ? pos.premiumPaid * totalElapsed / totalTenor
-                : pos.premiumPaid;
-            // The earned so far before this accrual cycle
-            uint256 priorCycles = lastAccrualTime > pos.startTime
-                ? pos.premiumPaid * (lastAccrualTime - pos.startTime) / totalTenor
-                : 0;
-            uint256 maxThisCycle = maxEarned > priorCycles ? maxEarned - priorCycles : 0;
-            accrued = accrued.min(maxThisCycle);
+            // Hard cap: total accrued for this position can never exceed premiumPaid
+            uint256 alreadyAccrued = positionPremiumAccrued[posId];
+            uint256 remaining = pos.premiumPaid > alreadyAccrued
+                ? pos.premiumPaid - alreadyAccrued : 0;
+            accrued = accrued.min(remaining);
 
+            positionPremiumAccrued[posId] += accrued;
             totalAccrued += accrued;
             unchecked { ++i; }
         }

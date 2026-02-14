@@ -67,6 +67,12 @@ contract NexusHub is INexusHub, ReentrancyGuard, Ownable {
     /// @notice User obligations (set by admin or protocol — simplified borrow tracking)
     mapping(address user => uint256) public obligations;
 
+    /// @notice Maximum age of cross-chain attestation before it's considered stale (seconds)
+    uint256 public attestationMaxAge = 1 hours;
+
+    /// @notice Timestamp of last attestation per user per chain
+    mapping(address user => mapping(bytes32 chainId => uint256 timestamp)) public attestationTimestamp;
+
     /// @notice Teleporter address for cross-chain message verification
     address public teleporter;
 
@@ -217,6 +223,12 @@ contract NexusHub is INexusHub, ReentrancyGuard, Ownable {
         emit ObligationUpdated(user, amount);
     }
 
+    /// @notice Update attestation max age
+    function setAttestationMaxAge(uint256 maxAge_) external onlyOwner {
+        require(maxAge_ >= 10 minutes, "NexusHub: max age too short");
+        attestationMaxAge = maxAge_;
+    }
+
     /// @notice Update liquidation parameters
     function setLiquidationParams(uint256 threshold_, uint256 penaltyBps_) external onlyOwner {
         require(threshold_ >= MeridianMath.WAD, "NexusHub: threshold < 100%");
@@ -279,12 +291,16 @@ contract NexusHub is INexusHub, ReentrancyGuard, Ownable {
     function _crossChainCollateralValue(address user) internal view returns (uint256 total) {
         bytes32[] memory chains = _userChains[user];
         for (uint256 i = 0; i < chains.length; i++) {
-            total += crossChainCollateral[user][chains[i]];
+            // Skip stale attestations
+            if (block.timestamp - attestationTimestamp[user][chains[i]] <= attestationMaxAge) {
+                total += crossChainCollateral[user][chains[i]];
+            }
         }
     }
 
     function _processAttestation(bytes32 chainId, address user, uint256 totalValue) internal {
         crossChainCollateral[user][chainId] = totalValue;
+        attestationTimestamp[user][chainId] = block.timestamp;
 
         if (!_hasChainAttestation[user][chainId]) {
             _hasChainAttestation[user][chainId] = true;

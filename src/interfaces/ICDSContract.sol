@@ -29,6 +29,7 @@ interface ICDSContract {
     function payPremium() external;
     function triggerCreditEvent() external;
     function settle() external;
+    function expire() external;
     function getStatus() external view returns (CDSStatus);
     function getTerms() external view returns (CDSTerms memory);
 }
