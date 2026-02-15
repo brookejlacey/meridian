@@ -86,6 +86,12 @@ contract NexusHub is INexusHub, ReentrancyGuard, Ownable {
     /// @notice Insurance pool for covering liquidation shortfalls
     address public insurancePool;
 
+    // --- Protocol Fee ---
+    address public treasury;
+    uint256 public liquidationFeeBps;
+    uint256 public constant MAX_LIQUIDATION_FEE_BPS = 5000; // 50%
+    uint256 public totalProtocolFeesCollected;
+
     // --- Events ---
     event CollateralWithdrawn(address indexed user, address indexed asset, uint256 amount);
     event ObligationUpdated(address indexed user, uint256 newObligation);
@@ -354,7 +360,7 @@ contract NexusHub is INexusHub, ReentrancyGuard, Ownable {
             localDeposits[user][assets[i]] = 0;
 
             if (totalSeizedValue + val <= seizureTarget) {
-                IERC20(assets[i]).safeTransfer(liquidator, bal);
+                _transferWithFee(assets[i], bal, liquidator);
                 totalSeizedValue += val;
             } else {
                 // Partial: seize only what's needed, return rest
@@ -362,7 +368,7 @@ contract NexusHub is INexusHub, ReentrancyGuard, Ownable {
                 uint256 price = oracle.getPrice(assets[i]);
                 uint256 seizeAmt = price > 0 ? MeridianMath.wadDiv(needed, price) : bal;
                 if (seizeAmt > bal) seizeAmt = bal;
-                IERC20(assets[i]).safeTransfer(liquidator, seizeAmt);
+                _transferWithFee(assets[i], seizeAmt, liquidator);
                 if (bal > seizeAmt) {
                     IERC20(assets[i]).safeTransfer(user, bal - seizeAmt);
                     localDeposits[user][assets[i]] = bal - seizeAmt;
@@ -385,5 +391,34 @@ contract NexusHub is INexusHub, ReentrancyGuard, Ownable {
                 obligations[user] -= covered;
             }
         }
+    }
+
+    /// @dev Split seized tokens between liquidator and treasury
+    function _transferWithFee(address asset, uint256 amount, address liquidator) internal {
+        if (liquidationFeeBps > 0 && treasury != address(0)) {
+            uint256 protocolCut = MeridianMath.bpsMul(amount, liquidationFeeBps);
+            if (protocolCut > 0) {
+                IERC20(asset).safeTransfer(treasury, protocolCut);
+                totalProtocolFeesCollected += oracle.getCollateralValue(asset, protocolCut);
+                amount -= protocolCut;
+            }
+        }
+        IERC20(asset).safeTransfer(liquidator, amount);
+    }
+
+    // --- Protocol Fee Admin ---
+
+    function setTreasury(address treasury_) external onlyOwner {
+        require(treasury_ != address(0), "NexusHub: zero treasury");
+        address oldTreasury = treasury;
+        treasury = treasury_;
+        emit TreasuryUpdated(oldTreasury, treasury_);
+    }
+
+    function setLiquidationFeeBps(uint256 feeBps) external onlyOwner {
+        require(feeBps <= MAX_LIQUIDATION_FEE_BPS, "NexusHub: fee exceeds max");
+        uint256 oldFeeBps = liquidationFeeBps;
+        liquidationFeeBps = feeBps;
+        emit LiquidationFeeUpdated(oldFeeBps, feeBps);
     }
 }

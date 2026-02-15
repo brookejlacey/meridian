@@ -21,6 +21,8 @@ contract YieldVaultTest is Test {
     ForgeFactory forgeFactory;
     ForgeVault forgeVault;
     YieldVaultFactory yvFactory;
+    address treasury = makeAddr("treasury");
+    address protocolAdmin = makeAddr("protocolAdmin");
     YieldVault yv;
 
     TrancheToken seniorToken;
@@ -34,7 +36,7 @@ contract YieldVaultTest is Test {
 
     function setUp() public {
         usdc = new MockYieldSource("USDC", "USDC", 18);
-        forgeFactory = new ForgeFactory();
+        forgeFactory = new ForgeFactory(treasury, protocolAdmin, 0);
 
         // Predict vault address
         uint256 nonce = vm.getNonce(address(forgeFactory));
@@ -271,10 +273,12 @@ contract YieldVaultFactoryTest is Test {
     ForgeFactory forgeFactory;
     ForgeVault forgeVault;
     YieldVaultFactory yvFactory;
+    address treasury = makeAddr("treasury");
+    address protocolAdmin = makeAddr("protocolAdmin");
 
     function setUp() public {
         usdc = new MockYieldSource("USDC", "USDC", 18);
-        forgeFactory = new ForgeFactory();
+        forgeFactory = new ForgeFactory(treasury, protocolAdmin, 0);
 
         uint256 nonce = vm.getNonce(address(forgeFactory));
         address predicted = vm.computeCreateAddress(address(forgeFactory), nonce);

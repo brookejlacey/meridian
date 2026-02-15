@@ -30,7 +30,7 @@ contract PoolRouterTest is Test {
     function setUp() public {
         usdc = new MockYieldSource("USDC", "USDC", 18);
         oracle = new CreditEventOracle();
-        factory = new CDSPoolFactory();
+        factory = new CDSPoolFactory(address(this), address(this), 0);
         router = new PoolRouter(address(factory));
 
         // Create 3 pools with different base spreads (different pricing)

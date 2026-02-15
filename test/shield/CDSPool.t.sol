@@ -191,7 +191,7 @@ contract CDSPoolTest is Test {
             slopeWad: SLOPE
         });
 
-        pool = new CDSPool(terms, address(this));
+        pool = new CDSPool(terms, address(this), address(this), address(this), 0);
 
         // Fund actors
         usdc.mint(alice, 10_000_000e18);
@@ -725,7 +725,7 @@ contract CDSPoolFactoryTest is Test {
     function setUp() public {
         usdc = new MockYieldSource("USDC", "USDC", 18);
         oracle = new CreditEventOracle();
-        factory = new CDSPoolFactory();
+        factory = new CDSPoolFactory(address(this), address(this), 0);
     }
 
     function test_createPool() public {
@@ -833,7 +833,7 @@ contract CDSPoolIntegrationTest is Test {
     function setUp() public {
         usdc = new MockYieldSource("USDC", "USDC", 18);
         oracle = new CreditEventOracle();
-        factory = new CDSPoolFactory();
+        factory = new CDSPoolFactory(address(this), address(this), 0);
 
         usdc.mint(alice, 100_000_000e18);
         usdc.mint(bob, 100_000_000e18);

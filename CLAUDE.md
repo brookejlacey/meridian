@@ -16,6 +16,7 @@ Meridian is an onchain institutional credit protocol on Avalanche with three lay
 - **LPIncentiveGauge**: Synthetix StakingRewards-style liquidity mining for CDSPool LPs
 - **SecondaryMarketRouter**: DEX-composable router for tranche token trading (swap, swap+reinvest, swap+hedge)
 - **InsurancePool**: Backstop for NexusHub liquidation shortfalls (deposit/withdraw reserves, auto-cover)
+- **ProtocolTreasury**: Fee receiver for protocol revenue (ForgeVault yield fees, CDSPool premium fees, NexusHub liquidation fees)
 
 All contracts are Solidity 0.8.27, tested with Foundry, deployed on Avalanche Fuji testnet.
 
@@ -23,7 +24,7 @@ All contracts are Solidity 0.8.27, tested with Foundry, deployed on Avalanche Fu
 
 ```bash
 forge build                              # Compile all contracts
-forge test                               # Run all 443 tests (includes 10k-run fuzz + invariants)
+forge test                               # Run all 482 tests (includes 10k-run fuzz + invariants)
 forge test --match-contract <Name> -vv   # Run specific test suite with verbosity
 cd frontend && npm run build             # Build Next.js frontend
 cd indexer && pnpm dev                   # Start Ponder indexer (localhost:42069)
@@ -55,6 +56,7 @@ cd indexer && pnpm dev                   # Start Ponder indexer (localhost:42069
 - **Beneficiary pattern**: `investFor(trancheId, amount, beneficiary)` and `buyProtectionFor(amount, maxPremium, beneficiary)` let routers act on behalf of users. Tokens pulled from `msg.sender`, ownership assigned to `beneficiary`.
 - **eERC limitation**: ElGamal only supports addition. All comparison/multiplication must be plaintext. Using MockEERC until ZK proof infrastructure is built.
 - **ICM/Teleporter**: Mocked for now (version conflict: eERC needs 0.8.27, Teleporter needs 0.8.25).
+- **Protocol fee system**: Push-based fees — contracts `safeTransfer` directly to ProtocolTreasury. ForgeVault: 0.5% of yield (max 10%), CDSPool: 10% of premiums (max 50%), NexusHub: 10% of liquidation penalty (max 50%). ForgeFactory/CDSPoolFactory propagate treasury+admin+fee to created contracts. Fee=0 disables.
 
 ## Deployed Addresses (Fuji)
 
@@ -93,6 +95,7 @@ See README.md for full table. Key addresses:
 | Routers | `src/HedgeRouter.sol`, `src/PoolRouter.sol`, `src/FlashRebalancer.sol`, `src/SecondaryMarketRouter.sol` |
 | Keeper | `src/LiquidationBot.sol` |
 | Insurance | `src/nexus/InsurancePool.sol` |
+| Treasury | `src/ProtocolTreasury.sol`, `src/interfaces/IProtocolTreasury.sol` |
 | Yield | `src/yield/YieldVault.sol`, `src/yield/YieldVaultFactory.sol`, `src/yield/StrategyRouter.sol`, `src/yield/LPIncentiveGauge.sol` |
 | Math | `src/libraries/MeridianMath.sol`, `src/libraries/WaterfallDistributor.sol` |
 | Tests | `test/forge/`, `test/shield/`, `test/nexus/`, `test/yield/`, `test/invariants/`, `test/*.t.sol` |

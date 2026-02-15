@@ -28,6 +28,8 @@ contract SecondaryMarketRouterTest is Test {
     // Actors
     address user = makeAddr("user");
     address originator = makeAddr("originator");
+    address treasury = makeAddr("treasury");
+    address protocolAdmin = makeAddr("protocolAdmin");
     address cdsSeller = makeAddr("cdsSeller");
 
     // Forge layer
@@ -56,7 +58,7 @@ contract SecondaryMarketRouterTest is Test {
     function setUp() public {
         // --- Deploy Forge layer ---
         underlying = new MockYieldSource("Mock USDC", "mUSDC", 18);
-        forgeFactory = new ForgeFactory();
+        forgeFactory = new ForgeFactory(treasury, protocolAdmin, 0);
 
         uint256 factoryNonce = vm.getNonce(address(forgeFactory));
         address predictedVault = vm.computeCreateAddress(address(forgeFactory), factoryNonce);

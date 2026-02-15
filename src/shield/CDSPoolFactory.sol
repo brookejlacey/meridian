@@ -9,6 +9,7 @@ import {ICDSPool} from "../interfaces/ICDSPool.sol";
 /// @notice Creates and registers CDSPool AMM instances.
 /// @dev Tracks pools by ID, reference asset, and creator.
 ///      Owner can authorize pool settlements (recovery rate from oracle/governance).
+///      Protocol fee configuration is set at factory level and passed to new pools.
 contract CDSPoolFactory is Ownable {
     // --- State ---
     uint256 public poolCount;
@@ -16,6 +17,11 @@ contract CDSPoolFactory is Ownable {
     mapping(address referenceAsset => uint256[] poolIds) public poolsByReferenceAsset;
     mapping(address creator => uint256[] poolIds) public poolsByCreator;
     mapping(address => bool) public settleAuthorized;
+
+    // --- Protocol Fee Config ---
+    address public treasury;
+    address public protocolAdmin;
+    uint256 public defaultProtocolFeeBps;
 
     // --- Events ---
     event PoolCreated(
@@ -38,7 +44,19 @@ contract CDSPoolFactory is Ownable {
         uint256 slopeWad;           // Bonding curve slope (WAD)
     }
 
-    constructor() Ownable(msg.sender) {}
+    constructor(
+        address treasury_,
+        address protocolAdmin_,
+        uint256 defaultProtocolFeeBps_
+    ) Ownable(msg.sender) {
+        require(treasury_ != address(0), "CDSPoolFactory: zero treasury");
+        require(protocolAdmin_ != address(0), "CDSPoolFactory: zero protocol admin");
+        require(defaultProtocolFeeBps_ <= 5000, "CDSPoolFactory: fee exceeds max");
+
+        treasury = treasury_;
+        protocolAdmin = protocolAdmin_;
+        defaultProtocolFeeBps = defaultProtocolFeeBps_;
+    }
 
     /// @notice Authorize an address to settle pools (e.g., LiquidationBot)
     function authorizeSettler(address settler, bool authorized) external onlyOwner {
@@ -78,7 +96,13 @@ contract CDSPoolFactory is Ownable {
             slopeWad: params.slopeWad
         });
 
-        CDSPool pool = new CDSPool(poolTerms, address(this));
+        CDSPool pool = new CDSPool(
+            poolTerms,
+            address(this),
+            treasury,
+            protocolAdmin,
+            defaultProtocolFeeBps
+        );
 
         poolAddress = address(pool);
         pools[poolId] = poolAddress;
@@ -109,5 +133,22 @@ contract CDSPoolFactory is Ownable {
     /// @notice Get pool address by ID
     function getPool(uint256 poolId) external view returns (address) {
         return pools[poolId];
+    }
+
+    // --- Admin ---
+
+    function setTreasury(address treasury_) external onlyOwner {
+        require(treasury_ != address(0), "CDSPoolFactory: zero treasury");
+        treasury = treasury_;
+    }
+
+    function setProtocolAdmin(address protocolAdmin_) external onlyOwner {
+        require(protocolAdmin_ != address(0), "CDSPoolFactory: zero protocol admin");
+        protocolAdmin = protocolAdmin_;
+    }
+
+    function setDefaultProtocolFee(uint256 feeBps) external onlyOwner {
+        require(feeBps <= 5000, "CDSPoolFactory: fee exceeds max");
+        defaultProtocolFeeBps = feeBps;
     }
 }

@@ -7,11 +7,18 @@ import {IForgeVault} from "../interfaces/IForgeVault.sol";
 /// @title ForgeFactory
 /// @notice Creates and registers ForgeVault instances.
 /// @dev Tracks all vaults for discovery and aggregate metrics.
+///      Protocol fee configuration is set at factory level and passed to new vaults.
 contract ForgeFactory {
     // --- State ---
     uint256 public vaultCount;
     mapping(uint256 id => address vault) public vaults;
     mapping(address originator => uint256[] vaultIds) public vaultsByOriginator;
+
+    // --- Protocol Fee Config ---
+    address public owner;
+    address public treasury;
+    address public protocolAdmin;
+    uint256 public defaultProtocolFeeBps;
 
     // --- Events ---
     event VaultCreated(
@@ -27,6 +34,23 @@ contract ForgeFactory {
         address[3] trancheTokenAddresses;
         IForgeVault.TrancheParams[3] trancheParams;
         uint256 distributionInterval;
+    }
+
+    // --- Modifiers ---
+    modifier onlyOwner() {
+        require(msg.sender == owner, "ForgeFactory: not owner");
+        _;
+    }
+
+    constructor(address treasury_, address protocolAdmin_, uint256 defaultProtocolFeeBps_) {
+        require(treasury_ != address(0), "ForgeFactory: zero treasury");
+        require(protocolAdmin_ != address(0), "ForgeFactory: zero protocol admin");
+        require(defaultProtocolFeeBps_ <= 1000, "ForgeFactory: fee exceeds max");
+
+        owner = msg.sender;
+        treasury = treasury_;
+        protocolAdmin = protocolAdmin_;
+        defaultProtocolFeeBps = defaultProtocolFeeBps_;
     }
 
     /// @notice Create a new ForgeVault
@@ -48,7 +72,10 @@ contract ForgeFactory {
             params.underlyingAsset,
             params.trancheTokenAddresses,
             params.trancheParams,
-            params.distributionInterval
+            params.distributionInterval,
+            treasury,
+            protocolAdmin,
+            defaultProtocolFeeBps
         );
 
         vaultAddress = address(vault);
@@ -66,5 +93,22 @@ contract ForgeFactory {
     /// @notice Get vault address by ID
     function getVault(uint256 vaultId) external view returns (address) {
         return vaults[vaultId];
+    }
+
+    // --- Admin ---
+
+    function setTreasury(address treasury_) external onlyOwner {
+        require(treasury_ != address(0), "ForgeFactory: zero treasury");
+        treasury = treasury_;
+    }
+
+    function setProtocolAdmin(address protocolAdmin_) external onlyOwner {
+        require(protocolAdmin_ != address(0), "ForgeFactory: zero protocol admin");
+        protocolAdmin = protocolAdmin_;
+    }
+
+    function setDefaultProtocolFee(uint256 feeBps) external onlyOwner {
+        require(feeBps <= 1000, "ForgeFactory: fee exceeds max");
+        defaultProtocolFeeBps = feeBps;
     }
 }

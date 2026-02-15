@@ -38,7 +38,7 @@ contract LiquidationBotTest is Test {
     function setUp() public {
         usdc = new MockYieldSource("USDC", "USDC", 18);
         oracle = new CreditEventOracle();
-        poolFactory = new CDSPoolFactory();
+        poolFactory = new CDSPoolFactory(address(this), address(this), 0);
         teleporter = new MockTeleporter(bytes32(uint256(43113)));
         collateralOracle = new CollateralOracle();
         nexusHub = new NexusHub(

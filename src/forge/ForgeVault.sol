@@ -78,6 +78,13 @@ contract ForgeVault is IForgeVault, ReentrancyGuard {
     /// @notice Minimum time between waterfall triggers (prevents MEV spam)
     uint256 public distributionInterval;
 
+    // --- Protocol Fee ---
+    address public immutable treasury;
+    address public immutable protocolAdmin;
+    uint256 public protocolFeeBps;
+    uint256 public constant MAX_PROTOCOL_FEE_BPS = 1000; // 10%
+    uint256 public totalProtocolFeesCollected;
+
     // --- Modifiers ---
     modifier onlyOriginator() {
         require(msg.sender == originator, "ForgeVault: not originator");
@@ -100,14 +107,23 @@ contract ForgeVault is IForgeVault, ReentrancyGuard {
         address underlyingAsset_,
         address[3] memory trancheTokenAddresses,
         TrancheParams[3] memory params,
-        uint256 distributionInterval_
+        uint256 distributionInterval_,
+        address treasury_,
+        address protocolAdmin_,
+        uint256 protocolFeeBps_
     ) {
         require(originator_ != address(0), "ForgeVault: zero originator");
         require(underlyingAsset_ != address(0), "ForgeVault: zero asset");
+        require(treasury_ != address(0), "ForgeVault: zero treasury");
+        require(protocolAdmin_ != address(0), "ForgeVault: zero protocol admin");
+        require(protocolFeeBps_ <= MAX_PROTOCOL_FEE_BPS, "ForgeVault: fee exceeds max");
 
         originator = originator_;
         underlyingAsset = IERC20(underlyingAsset_);
         distributionInterval = distributionInterval_;
+        treasury = treasury_;
+        protocolAdmin = protocolAdmin_;
+        protocolFeeBps = protocolFeeBps_;
 
         uint256 totalAllocation;
         for (uint8 i = 0; i < NUM_TRANCHES;) {
@@ -256,6 +272,17 @@ contract ForgeVault is IForgeVault, ReentrancyGuard {
         uint256 availableYield = currentBalance - obligated;
         if (availableYield == 0) return;
 
+        // Extract protocol fee BEFORE waterfall distribution
+        if (protocolFeeBps > 0) {
+            uint256 protocolFee = availableYield.bpsMul(protocolFeeBps);
+            if (protocolFee > 0) {
+                underlyingAsset.safeTransfer(treasury, protocolFee);
+                totalProtocolFeesCollected += protocolFee;
+                availableYield -= protocolFee;
+                emit ProtocolFeeCollected(protocolFee);
+            }
+        }
+
         // Build tranche states for waterfall calculation
         WaterfallDistributor.TrancheState[3] memory states;
         for (uint8 i = 0; i < NUM_TRANCHES;) {
@@ -341,6 +368,19 @@ contract ForgeVault is IForgeVault, ReentrancyGuard {
         }
 
         emit TrancheRatiosAdjusted(oldPcts, newPcts);
+    }
+
+    // --- Protocol Fee Admin ---
+
+    /// @notice Set protocol fee (only protocol admin)
+    /// @param newFeeBps New fee in basis points (max 1000 = 10%)
+    function setProtocolFee(uint256 newFeeBps) external {
+        require(msg.sender == protocolAdmin, "ForgeVault: not protocol admin");
+        require(newFeeBps <= MAX_PROTOCOL_FEE_BPS, "ForgeVault: fee exceeds max");
+
+        uint256 oldFeeBps = protocolFeeBps;
+        protocolFeeBps = newFeeBps;
+        emit ProtocolFeeUpdated(oldFeeBps, newFeeBps);
     }
 
     // --- Transfer Hook (called by TrancheToken) ---

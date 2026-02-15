@@ -89,7 +89,7 @@ contract CDSPoolInvariantTest is StdInvariant, Test {
     function setUp() public {
         usdc = new MockYieldSource("USDC", "USDC", 18);
         CreditEventOracle oracle = new CreditEventOracle();
-        CDSPoolFactory factory = new CDSPoolFactory();
+        CDSPoolFactory factory = new CDSPoolFactory(address(this), address(this), 0);
 
         pool = CDSPool(factory.createPool(CDSPoolFactory.CreatePoolParams({
             referenceAsset: makeAddr("vault"),

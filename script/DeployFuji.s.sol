@@ -43,10 +43,11 @@ contract DeployFuji is Script {
     EncryptedTrancheToken public equityToken;
     address public vault;
     address public cds;
+    address public deployer;
 
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("DEPLOYER_PRIVATE_KEY");
-        address deployer = vm.addr(deployerPrivateKey);
+        deployer = vm.addr(deployerPrivateKey);
 
         console.log("Deployer:", deployer);
         console.log("Chain ID:", block.chainid);
@@ -58,7 +59,7 @@ contract DeployFuji is Script {
         _deployFactories();
         _deployForgeVault();
         _deployCDS();
-        _configure(deployer);
+        _configure();
 
         vm.stopBroadcast();
 
@@ -99,7 +100,7 @@ contract DeployFuji is Script {
     }
 
     function _deployFactories() internal {
-        forgeFactory = new ForgeFactory();
+        forgeFactory = new ForgeFactory(deployer, deployer, 0);
         shieldFactory = new ShieldFactory();
     }
 
@@ -150,7 +151,7 @@ contract DeployFuji is Script {
         );
     }
 
-    function _configure(address deployer) internal {
+    function _configure() internal {
         // Register assets in CollateralOracle
         collateralOracle.registerAsset(address(underlying), 1e18, 9500); // USDC: $1, 95%
         collateralOracle.registerAsset(address(seniorToken), 1e18, 8500); // Senior: 85%

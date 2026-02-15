@@ -37,6 +37,8 @@ interface ICDSPool {
     event PoolSettled(uint256 totalPayout, uint256 recoveryRate);
     event PoolExpired(uint256 timestamp);
     event SettlementClaimed(address indexed buyer, uint256 amount);
+    event ProtocolFeeCollected(uint256 amount);
+    event ProtocolFeeUpdated(uint256 oldFeeBps, uint256 newFeeBps);
 
     // --- LP Functions ---
     function deposit(uint256 amount) external returns (uint256 shares);
@@ -68,4 +70,10 @@ interface ICDSPool {
     function activePositionCount() external view returns (uint256);
     function convertToAssets(uint256 shareAmount) external view returns (uint256);
     function convertToShares(uint256 amount) external view returns (uint256);
+
+    // --- Protocol Fee ---
+    function treasury() external view returns (address);
+    function protocolFeeBps() external view returns (uint256);
+    function totalProtocolFeesCollected() external view returns (uint256);
+    function setProtocolFee(uint256 newFeeBps) external;
 }

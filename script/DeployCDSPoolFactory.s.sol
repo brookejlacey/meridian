@@ -10,9 +10,10 @@ import {CDSPoolFactory} from "../src/shield/CDSPoolFactory.sol";
 contract DeployCDSPoolFactory is Script {
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("DEPLOYER_PRIVATE_KEY");
+        address deployer = vm.addr(deployerPrivateKey);
 
         vm.startBroadcast(deployerPrivateKey);
-        CDSPoolFactory factory = new CDSPoolFactory();
+        CDSPoolFactory factory = new CDSPoolFactory(deployer, deployer, 0);
         vm.stopBroadcast();
 
         console.log("CDSPoolFactory deployed at:", address(factory));

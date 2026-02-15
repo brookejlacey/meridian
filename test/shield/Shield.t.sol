@@ -1014,6 +1014,8 @@ contract ShieldForgeIntegrationTest is Test {
     // Actors
     address originator = makeAddr("originator");
     address investor = makeAddr("investor");
+    address treasury = makeAddr("treasury");
+    address protocolAdmin = makeAddr("protocolAdmin");
     address cdsBuyer = makeAddr("cdsBuyer");
     address cdsSeller = makeAddr("cdsSeller");
 
@@ -1039,7 +1041,7 @@ contract ShieldForgeIntegrationTest is Test {
     function setUp() public {
         // --- Deploy Forge layer ---
         underlying = new MockYieldSource("Mock USDC", "mUSDC", 18);
-        forgeFactory = new ForgeFactory();
+        forgeFactory = new ForgeFactory(treasury, protocolAdmin, 0);
 
         // Predict vault address
         uint256 factoryNonce = vm.getNonce(address(forgeFactory));

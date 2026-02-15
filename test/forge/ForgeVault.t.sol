@@ -12,6 +12,8 @@ import {MeridianMath} from "../../src/libraries/MeridianMath.sol";
 contract ForgeVaultTest is Test {
     // --- Actors ---
     address originator = makeAddr("originator");
+    address treasury = makeAddr("treasury");
+    address protocolAdmin = makeAddr("protocolAdmin");
     address alice = makeAddr("alice"); // Senior investor
     address bob = makeAddr("bob"); // Mezzanine investor
     address carol = makeAddr("carol"); // Equity investor
@@ -38,7 +40,7 @@ contract ForgeVaultTest is Test {
         underlying = new MockYieldSource("Mock USDC", "mUSDC", 18);
 
         // Deploy factory
-        factory = new ForgeFactory();
+        factory = new ForgeFactory(treasury, protocolAdmin, 0);
 
         // We need to deploy vault first to get address for TrancheToken constructor,
         // but vault needs token addresses. Use CREATE2 or deploy tokens with placeholder,

@@ -78,7 +78,7 @@ contract DeployPhase5 is Script {
 
         vm.startBroadcast(deployerPrivateKey);
 
-        _deployCDSInfra();
+        _deployCDSInfra(deployer);
         _deployComposability();
         _deployYieldLayer(deployer);
         _createCDSPool();
@@ -91,10 +91,10 @@ contract DeployPhase5 is Script {
         _logAddresses();
     }
 
-    function _deployCDSInfra() internal {
+    function _deployCDSInfra(address deployer) internal {
         console.log("");
         console.log("[1/7] Deploying CDS AMM infrastructure...");
-        poolFactory = new CDSPoolFactory();
+        poolFactory = new CDSPoolFactory(deployer, deployer, 0);
         flashLender = new MockFlashLender();
 
         // Fund flash lender with MockUSDC

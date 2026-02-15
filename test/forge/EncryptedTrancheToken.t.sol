@@ -204,6 +204,8 @@ contract EncryptedTrancheTokenTest is Test {
 contract EncryptedTrancheVaultIntegrationTest is Test {
     // --- Actors ---
     address originator = makeAddr("originator");
+    address treasury = makeAddr("treasury");
+    address protocolAdmin = makeAddr("protocolAdmin");
     address alice = makeAddr("alice");
     address bob = makeAddr("bob");
     address carol = makeAddr("carol");
@@ -227,7 +229,7 @@ contract EncryptedTrancheVaultIntegrationTest is Test {
 
     function setUp() public {
         underlying = new MockYieldSource("Mock USDC", "mUSDC", 18);
-        factory = new ForgeFactory();
+        factory = new ForgeFactory(treasury, protocolAdmin, 0);
 
         // Predict vault address
         uint256 factoryNonce = vm.getNonce(address(factory));

@@ -136,8 +136,8 @@ contract Demo is Script {
         teleporter = new MockTeleporter(bytes32(uint256(43113)));
         collateralOracle = new CollateralOracle();
 
-        forgeFactory = new ForgeFactory();
-        poolFactory = new CDSPoolFactory();
+        forgeFactory = new ForgeFactory(deployer, deployer, 0);
+        poolFactory = new CDSPoolFactory(deployer, deployer, 0);
 
         nexusHub = new NexusHub(
             address(collateralOracle),

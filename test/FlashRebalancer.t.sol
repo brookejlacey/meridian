@@ -28,6 +28,8 @@ contract FlashRebalancerTest is Test {
 
     address alice = makeAddr("alice");
     address originator = makeAddr("originator");
+    address treasury = makeAddr("treasury");
+    address protocolAdmin = makeAddr("protocolAdmin");
 
     uint256 constant SENIOR_SIZE = 700_000e18;
     uint256 constant MEZZ_SIZE = 200_000e18;
@@ -37,7 +39,7 @@ contract FlashRebalancerTest is Test {
         usdc = new MockYieldSource("USDC", "USDC", 18);
         flashLender = new MockFlashLender();
         rebalancer = new FlashRebalancer(address(flashLender));
-        factory = new ForgeFactory();
+        factory = new ForgeFactory(treasury, protocolAdmin, 0);
 
         // Predict vault address for circular dependency
         uint256 factoryNonce = vm.getNonce(address(factory));

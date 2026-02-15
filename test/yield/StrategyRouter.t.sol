@@ -31,10 +31,12 @@ contract StrategyRouterTest is Test {
     address alice = makeAddr("alice");
     address bob = makeAddr("bob");
     address gov = makeAddr("governance");
+    address treasury = makeAddr("treasury");
+    address protocolAdmin = makeAddr("protocolAdmin");
 
     function setUp() public {
         usdc = new MockYieldSource("USDC", "USDC", 18);
-        forgeFactory = new ForgeFactory();
+        forgeFactory = new ForgeFactory(treasury, protocolAdmin, 0);
 
         // Predict vault address
         uint256 nonce = vm.getNonce(address(forgeFactory));

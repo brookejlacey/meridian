@@ -40,7 +40,7 @@ contract LPIncentiveGaugeTest is Test {
             slopeWad: 0.05e18
         });
 
-        pool = new CDSPool(terms, address(this));
+        pool = new CDSPool(terms, address(this), address(this), address(this), 0);
         gauge = new LPIncentiveGauge(address(pool), address(rewardToken), gov);
 
         // Fund actors

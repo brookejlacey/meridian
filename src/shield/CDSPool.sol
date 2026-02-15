@@ -39,6 +39,13 @@ contract CDSPool is ICDSPool, ReentrancyGuard {
     ICreditEventOracle public oracle;
     address public factory;
 
+    // --- Protocol Fee ---
+    address public immutable treasury;
+    address public immutable protocolAdmin;
+    uint256 public protocolFeeBps;
+    uint256 public constant MAX_PROTOCOL_FEE_BPS = 5000; // 50%
+    uint256 public totalProtocolFeesCollected;
+
     // LP accounting (ERC4626-style)
     uint256 public totalShares;
     mapping(address => uint256) public shares;
@@ -70,18 +77,30 @@ contract CDSPool is ICDSPool, ReentrancyGuard {
         _;
     }
 
-    constructor(PoolTerms memory terms_, address factory_) {
+    constructor(
+        PoolTerms memory terms_,
+        address factory_,
+        address treasury_,
+        address protocolAdmin_,
+        uint256 protocolFeeBps_
+    ) {
         require(terms_.referenceAsset != address(0), "CDSPool: zero ref asset");
         require(terms_.collateralToken != address(0), "CDSPool: zero collateral");
         require(terms_.oracle != address(0), "CDSPool: zero oracle");
         require(terms_.maturity > block.timestamp, "CDSPool: maturity passed");
         require(terms_.baseSpreadWad > 0, "CDSPool: zero base spread");
         require(terms_.slopeWad > 0, "CDSPool: zero slope");
+        require(treasury_ != address(0), "CDSPool: zero treasury");
+        require(protocolAdmin_ != address(0), "CDSPool: zero protocol admin");
+        require(protocolFeeBps_ <= MAX_PROTOCOL_FEE_BPS, "CDSPool: fee exceeds max");
 
         terms = terms_;
         collateralToken = IERC20(terms_.collateralToken);
         oracle = ICreditEventOracle(terms_.oracle);
         factory = factory_;
+        treasury = treasury_;
+        protocolAdmin = protocolAdmin_;
+        protocolFeeBps = protocolFeeBps_;
         status = PoolStatus.Active;
         lastAccrualTime = block.timestamp;
     }
@@ -505,6 +524,19 @@ contract CDSPool is ICDSPool, ReentrancyGuard {
         return MeridianMath.wadDiv(amount, MeridianMath.wadDiv(totalAssets(), totalShares));
     }
 
+    // ========== Protocol Fee Admin ==========
+
+    /// @notice Set protocol fee (only protocol admin)
+    /// @param newFeeBps New fee in basis points (max 5000 = 50%)
+    function setProtocolFee(uint256 newFeeBps) external {
+        require(msg.sender == protocolAdmin, "CDSPool: not protocol admin");
+        require(newFeeBps <= MAX_PROTOCOL_FEE_BPS, "CDSPool: fee exceeds max");
+
+        uint256 oldFeeBps = protocolFeeBps;
+        protocolFeeBps = newFeeBps;
+        emit ProtocolFeeUpdated(oldFeeBps, newFeeBps);
+    }
+
     // ========== Internal ==========
 
     /// @dev Accrue premiums from all active positions based on elapsed time
@@ -536,8 +568,18 @@ contract CDSPool is ICDSPool, ReentrancyGuard {
         }
 
         if (totalAccrued > 0) {
-            totalPremiumsEarned += totalAccrued;
-            emit PremiumsAccrued(totalAccrued, currentTime);
+            // Extract protocol fee BEFORE adding to LP earnings
+            uint256 protocolFee = 0;
+            if (protocolFeeBps > 0) {
+                protocolFee = totalAccrued.bpsMul(protocolFeeBps);
+                if (protocolFee > 0) {
+                    collateralToken.safeTransfer(treasury, protocolFee);
+                    totalProtocolFeesCollected += protocolFee;
+                    emit ProtocolFeeCollected(protocolFee);
+                }
+            }
+            totalPremiumsEarned += (totalAccrued - protocolFee);
+            emit PremiumsAccrued(totalAccrued - protocolFee, currentTime);
         }
         lastAccrualTime = currentTime;
     }

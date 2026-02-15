@@ -35,6 +35,8 @@ interface IForgeVault {
     event Withdrawn(address indexed investor, uint8 indexed trancheId, uint256 amount);
     event PoolStatusChanged(PoolStatus oldStatus, PoolStatus newStatus);
     event TrancheRatiosAdjusted(uint256[3] oldPcts, uint256[3] newPcts);
+    event ProtocolFeeCollected(uint256 amount);
+    event ProtocolFeeUpdated(uint256 oldFeeBps, uint256 newFeeBps);
 
     // --- Core Functions ---
     function invest(uint8 trancheId, uint256 amount) external;
@@ -51,4 +53,10 @@ interface IForgeVault {
     function poolStatus() external view returns (PoolStatus);
     function underlyingAsset() external view returns (IERC20);
     function adjustTrancheRatios(uint256[3] calldata newPcts) external;
+
+    // --- Protocol Fee Functions ---
+    function treasury() external view returns (address);
+    function protocolFeeBps() external view returns (uint256);
+    function totalProtocolFeesCollected() external view returns (uint256);
+    function setProtocolFee(uint256 newFeeBps) external;
 }

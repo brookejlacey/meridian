@@ -11,6 +11,8 @@ import {MockYieldSource} from "../../src/mocks/MockYieldSource.sol";
 contract DynamicTrancheRatiosTest is Test {
     // --- Actors ---
     address originator = makeAddr("originator");
+    address treasury = makeAddr("treasury");
+    address protocolAdmin = makeAddr("protocolAdmin");
     address alice = makeAddr("alice");
     address bob = makeAddr("bob");
     address carol = makeAddr("carol");
@@ -28,7 +30,7 @@ contract DynamicTrancheRatiosTest is Test {
 
     function setUp() public {
         underlying = new MockYieldSource("Mock USDC", "mUSDC", 18);
-        factory = new ForgeFactory();
+        factory = new ForgeFactory(treasury, protocolAdmin, 0);
 
         uint256 factoryNonce = vm.getNonce(address(factory));
         address predictedVault = vm.computeCreateAddress(address(factory), factoryNonce);

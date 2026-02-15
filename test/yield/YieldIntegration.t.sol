@@ -39,13 +39,15 @@ contract YieldIntegrationTest is Test {
     address alice = makeAddr("alice");
     address bob = makeAddr("bob");
     address gov = makeAddr("governance");
+    address treasury = makeAddr("treasury");
+    address protocolAdmin = makeAddr("protocolAdmin");
 
     function setUp() public {
         usdc = new MockYieldSource("USDC", "USDC", 18);
         rewardToken = new MockYieldSource("REWARD", "RWD", 18);
 
         // --- Forge setup ---
-        forgeFactory = new ForgeFactory();
+        forgeFactory = new ForgeFactory(treasury, protocolAdmin, 0);
         uint256 nonce = vm.getNonce(address(forgeFactory));
         address predicted = vm.computeCreateAddress(address(forgeFactory), nonce);
 
@@ -81,7 +83,7 @@ contract YieldIntegrationTest is Test {
             baseSpreadWad: 0.02e18,
             slopeWad: 0.05e18
         });
-        pool = new CDSPool(terms, address(this));
+        pool = new CDSPool(terms, address(this), address(this), address(this), 0);
 
         // --- Gauge ---
         gauge = new LPIncentiveGauge(address(pool), address(rewardToken), gov);
