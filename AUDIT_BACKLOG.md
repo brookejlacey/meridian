@@ -8,7 +8,7 @@
 - [x] C-02: ForgeVault `_totalPendingYield()` always returns 0 — yield double-counting, vault insolvency
 - [x] C-03: CDSPool `settle()` has no access control — anyone can call with arbitrary recovery rate
 - [x] C-04: CDSPool first-depositor share precision attack — no virtual offset or minimum deposit
-- [ ] C-05: BondingCurve `quotePremium` unchecked overflow for tiny notionals — final chunk underflow wraps (edge case, requires notional < 10 wei)
+- [x] C-05: BondingCurve `quotePremium` unchecked overflow for tiny notionals — reduced to single step when notional < 10 wei
 
 ### HIGH (16 findings)
 

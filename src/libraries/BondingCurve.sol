@@ -70,9 +70,13 @@ library BondingCurve {
         );
 
         // Integrate spread over the utilization change using trapezoidal rule (N=10)
+        // For tiny notionals (< 10 wei), reduce to single step to prevent underflow
         uint256 steps = 10;
         uint256 stepSize = notional / steps;
-        if (stepSize == 0) stepSize = notional;
+        if (stepSize == 0) {
+            steps = 1;
+            stepSize = notional;
+        }
 
         uint256 totalSpread;
         uint256 currentProtection = totalProtection;
