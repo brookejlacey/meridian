@@ -111,4 +111,24 @@ contract ForgeFactory {
         require(feeBps <= 1000, "ForgeFactory: fee exceeds max");
         defaultProtocolFeeBps = feeBps;
     }
+
+    // --- Ownership Transfer (Two-Step) ---
+
+    address public pendingOwner;
+
+    event OwnershipTransferStarted(address indexed previousOwner, address indexed newOwner);
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+
+    function transferOwnership(address newOwner) external onlyOwner {
+        require(newOwner != address(0), "ForgeFactory: zero address");
+        pendingOwner = newOwner;
+        emit OwnershipTransferStarted(owner, newOwner);
+    }
+
+    function acceptOwnership() external {
+        require(msg.sender == pendingOwner, "ForgeFactory: not pending owner");
+        emit OwnershipTransferred(owner, msg.sender);
+        owner = msg.sender;
+        pendingOwner = address(0);
+    }
 }

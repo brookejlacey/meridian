@@ -21,7 +21,7 @@ contract HedgeRouter is IHedgeRouter, ReentrancyGuard, Pausable {
 
     ShieldPricer public immutable pricer;
     ShieldFactory public immutable shieldFactory;
-    address public immutable pauseAdmin;
+    address public pauseAdmin;
 
     constructor(address pricer_, address shieldFactory_, address pauseAdmin_) {
         require(pricer_ != address(0), "HedgeRouter: zero pricer");
@@ -121,6 +121,27 @@ contract HedgeRouter is IHedgeRouter, ReentrancyGuard, Pausable {
     function unpause() external {
         require(msg.sender == pauseAdmin, "HedgeRouter: not pause admin");
         _unpause();
+    }
+
+    // --- Pause Admin Transfer (Two-Step) ---
+
+    address public pendingPauseAdmin;
+
+    event PauseAdminTransferStarted(address indexed previousAdmin, address indexed newAdmin);
+    event PauseAdminTransferred(address indexed previousAdmin, address indexed newAdmin);
+
+    function transferPauseAdmin(address newAdmin) external {
+        require(msg.sender == pauseAdmin, "HedgeRouter: not pause admin");
+        require(newAdmin != address(0), "HedgeRouter: zero address");
+        pendingPauseAdmin = newAdmin;
+        emit PauseAdminTransferStarted(pauseAdmin, newAdmin);
+    }
+
+    function acceptPauseAdmin() external {
+        require(msg.sender == pendingPauseAdmin, "HedgeRouter: not pending admin");
+        emit PauseAdminTransferred(pauseAdmin, msg.sender);
+        pauseAdmin = msg.sender;
+        pendingPauseAdmin = address(0);
     }
 
     /// @notice Quote the estimated hedge cost for an investment

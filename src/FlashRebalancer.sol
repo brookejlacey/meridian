@@ -25,7 +25,7 @@ contract FlashRebalancer is IFlashBorrower, ReentrancyGuard, Pausable {
     using SafeERC20 for IERC20;
 
     MockFlashLender public immutable FLASH_LENDER;
-    address public immutable pauseAdmin;
+    address public pauseAdmin;
 
     // Transient state for flash loan callback
     struct RebalanceParams {
@@ -146,5 +146,26 @@ contract FlashRebalancer is IFlashBorrower, ReentrancyGuard, Pausable {
     function unpause() external {
         require(msg.sender == pauseAdmin, "FlashRebalancer: not pause admin");
         _unpause();
+    }
+
+    // --- Pause Admin Transfer (Two-Step) ---
+
+    address public pendingPauseAdmin;
+
+    event PauseAdminTransferStarted(address indexed previousAdmin, address indexed newAdmin);
+    event PauseAdminTransferred(address indexed previousAdmin, address indexed newAdmin);
+
+    function transferPauseAdmin(address newAdmin) external {
+        require(msg.sender == pauseAdmin, "FlashRebalancer: not pause admin");
+        require(newAdmin != address(0), "FlashRebalancer: zero address");
+        pendingPauseAdmin = newAdmin;
+        emit PauseAdminTransferStarted(pauseAdmin, newAdmin);
+    }
+
+    function acceptPauseAdmin() external {
+        require(msg.sender == pendingPauseAdmin, "FlashRebalancer: not pending admin");
+        emit PauseAdminTransferred(pauseAdmin, msg.sender);
+        pauseAdmin = msg.sender;
+        pendingPauseAdmin = address(0);
     }
 }

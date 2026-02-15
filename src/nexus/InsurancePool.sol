@@ -5,6 +5,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {IInsurancePool} from "../interfaces/IInsurancePool.sol";
 import {MeridianMath} from "../libraries/MeridianMath.sol";
@@ -15,7 +16,7 @@ import {MeridianMath} from "../libraries/MeridianMath.sol";
 ///      to cover obligations, NexusHub calls coverShortfall() to absorb the difference.
 ///      Depositors share losses pro-rata if the pool absorbs shortfalls.
 ///      Funded by direct deposits + insurance premiums (% of obligations).
-contract InsurancePool is IInsurancePool, ReentrancyGuard, Ownable, Pausable {
+contract InsurancePool is IInsurancePool, ReentrancyGuard, Ownable2Step, Pausable {
     using SafeERC20 for IERC20;
     using MeridianMath for uint256;
 

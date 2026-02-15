@@ -80,8 +80,8 @@ contract ForgeVault is IForgeVault, ReentrancyGuard, Pausable {
     uint256 public distributionInterval;
 
     // --- Protocol Fee ---
-    address public immutable treasury;
-    address public immutable protocolAdmin;
+    address public treasury;
+    address public protocolAdmin;
     uint256 public protocolFeeBps;
     uint256 public constant MAX_PROTOCOL_FEE_BPS = 1000; // 10%
     uint256 public totalProtocolFeesCollected;
@@ -488,5 +488,50 @@ contract ForgeVault is IForgeVault, ReentrancyGuard, Pausable {
     /// @dev Tracks the difference between distributed and claimed yield globally.
     function _totalPendingYield() internal view returns (uint256 total) {
         return totalYieldDistributed - totalYieldClaimed;
+    }
+
+    // --- Access Control Transfers (Two-Step) ---
+
+    address public pendingOriginator;
+    address public pendingProtocolAdmin;
+
+    event OriginatorTransferStarted(address indexed previousOriginator, address indexed newOriginator);
+    event OriginatorTransferred(address indexed previousOriginator, address indexed newOriginator);
+    event ProtocolAdminTransferStarted(address indexed previousAdmin, address indexed newAdmin);
+    event ProtocolAdminTransferred(address indexed previousAdmin, address indexed newAdmin);
+    event TreasuryUpdated(address indexed previousTreasury, address indexed newTreasury);
+
+    function transferOriginator(address newOriginator) external onlyOriginator {
+        require(newOriginator != address(0), "ForgeVault: zero address");
+        pendingOriginator = newOriginator;
+        emit OriginatorTransferStarted(originator, newOriginator);
+    }
+
+    function acceptOriginator() external {
+        require(msg.sender == pendingOriginator, "ForgeVault: not pending originator");
+        emit OriginatorTransferred(originator, msg.sender);
+        originator = msg.sender;
+        pendingOriginator = address(0);
+    }
+
+    function transferProtocolAdmin(address newAdmin) external {
+        require(msg.sender == protocolAdmin, "ForgeVault: not protocol admin");
+        require(newAdmin != address(0), "ForgeVault: zero address");
+        pendingProtocolAdmin = newAdmin;
+        emit ProtocolAdminTransferStarted(protocolAdmin, newAdmin);
+    }
+
+    function acceptProtocolAdmin() external {
+        require(msg.sender == pendingProtocolAdmin, "ForgeVault: not pending admin");
+        emit ProtocolAdminTransferred(protocolAdmin, msg.sender);
+        protocolAdmin = msg.sender;
+        pendingProtocolAdmin = address(0);
+    }
+
+    function setTreasury(address newTreasury) external {
+        require(msg.sender == protocolAdmin, "ForgeVault: not protocol admin");
+        require(newTreasury != address(0), "ForgeVault: zero address");
+        emit TreasuryUpdated(treasury, newTreasury);
+        treasury = newTreasury;
     }
 }

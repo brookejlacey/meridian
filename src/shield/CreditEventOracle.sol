@@ -2,6 +2,7 @@
 pragma solidity 0.8.27;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {ICreditEventOracle} from "../interfaces/ICreditEventOracle.sol";
 import {IForgeVault} from "../interfaces/IForgeVault.sol";
 
@@ -13,7 +14,7 @@ import {IForgeVault} from "../interfaces/IForgeVault.sol";
 ///      - Anyone can call checkAndTrigger() to auto-detect breaches
 ///
 ///      Future upgrade path: multi-oracle consensus, dispute period, governance override.
-contract CreditEventOracle is ICreditEventOracle, Ownable {
+contract CreditEventOracle is ICreditEventOracle, Ownable2Step {
     // --- State ---
 
     /// @notice Health threshold per vault (WAD-scaled). Below this → impairment.

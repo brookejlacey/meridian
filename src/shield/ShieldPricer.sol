@@ -102,9 +102,22 @@ contract ShieldPricer {
 
     // --- Admin ---
 
+    address public pendingOwner;
+
+    event OwnershipTransferStarted(address indexed previousOwner, address indexed newOwner);
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+
     function transferOwnership(address newOwner) external onlyOwner {
-        require(newOwner != address(0), "ShieldPricer: zero owner");
-        owner = newOwner;
+        require(newOwner != address(0), "ShieldPricer: zero address");
+        pendingOwner = newOwner;
+        emit OwnershipTransferStarted(owner, newOwner);
+    }
+
+    function acceptOwnership() external {
+        require(msg.sender == pendingOwner, "ShieldPricer: not pending owner");
+        emit OwnershipTransferred(owner, msg.sender);
+        owner = msg.sender;
+        pendingOwner = address(0);
     }
 
     function setDefaultParams(PricingParams calldata params_) external onlyOwner {

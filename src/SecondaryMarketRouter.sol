@@ -24,7 +24,7 @@ contract SecondaryMarketRouter is ISecondaryMarketRouter, ReentrancyGuard, Pausa
 
     /// @notice DEX router interface (MockDEXRouter in testing, Uniswap/TraderJoe in production)
     address public immutable dex;
-    address public immutable pauseAdmin;
+    address public pauseAdmin;
 
     constructor(address dex_, address pauseAdmin_) {
         require(dex_ != address(0), "SecondaryMarketRouter: zero dex");
@@ -144,6 +144,27 @@ contract SecondaryMarketRouter is ISecondaryMarketRouter, ReentrancyGuard, Pausa
     function unpause() external {
         require(msg.sender == pauseAdmin, "SecondaryMarketRouter: not pause admin");
         _unpause();
+    }
+
+    // --- Pause Admin Transfer (Two-Step) ---
+
+    address public pendingPauseAdmin;
+
+    event PauseAdminTransferStarted(address indexed previousAdmin, address indexed newAdmin);
+    event PauseAdminTransferred(address indexed previousAdmin, address indexed newAdmin);
+
+    function transferPauseAdmin(address newAdmin) external {
+        require(msg.sender == pauseAdmin, "SecondaryMarketRouter: not pause admin");
+        require(newAdmin != address(0), "SecondaryMarketRouter: zero address");
+        pendingPauseAdmin = newAdmin;
+        emit PauseAdminTransferStarted(pauseAdmin, newAdmin);
+    }
+
+    function acceptPauseAdmin() external {
+        require(msg.sender == pendingPauseAdmin, "SecondaryMarketRouter: not pending admin");
+        emit PauseAdminTransferred(pauseAdmin, msg.sender);
+        pauseAdmin = msg.sender;
+        pendingPauseAdmin = address(0);
     }
 
     /// @notice Quote a swap (view)

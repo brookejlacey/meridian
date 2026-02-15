@@ -30,7 +30,7 @@ contract YieldVault is ERC4626, ReentrancyGuard, Pausable {
     // --- Immutables ---
     IForgeVault public immutable FORGE_VAULT;
     uint8 public immutable TRANCHE_ID;
-    address public immutable PAUSE_ADMIN;
+    address public pauseAdmin;
 
     // --- State ---
     uint256 public totalInvested;
@@ -56,7 +56,7 @@ contract YieldVault is ERC4626, ReentrancyGuard, Pausable {
 
         FORGE_VAULT = IForgeVault(forgeVault_);
         TRANCHE_ID = trancheId_;
-        PAUSE_ADMIN = pauseAdmin_;
+        pauseAdmin = pauseAdmin_;
         compoundInterval = compoundInterval_;
         lastCompoundTime = block.timestamp;
 
@@ -200,13 +200,34 @@ contract YieldVault is ERC4626, ReentrancyGuard, Pausable {
     // --- Pausable ---
 
     function pause() external {
-        require(msg.sender == PAUSE_ADMIN, "YieldVault: not pause admin");
+        require(msg.sender == pauseAdmin, "YieldVault: not pause admin");
         _pause();
     }
 
     function unpause() external {
-        require(msg.sender == PAUSE_ADMIN, "YieldVault: not pause admin");
+        require(msg.sender == pauseAdmin, "YieldVault: not pause admin");
         _unpause();
+    }
+
+    // --- Pause Admin Transfer (Two-Step) ---
+
+    address public pendingPauseAdmin;
+
+    event PauseAdminTransferStarted(address indexed previousAdmin, address indexed newAdmin);
+    event PauseAdminTransferred(address indexed previousAdmin, address indexed newAdmin);
+
+    function transferPauseAdmin(address newAdmin) external {
+        require(msg.sender == pauseAdmin, "YieldVault: not pause admin");
+        require(newAdmin != address(0), "YieldVault: zero address");
+        pendingPauseAdmin = newAdmin;
+        emit PauseAdminTransferStarted(pauseAdmin, newAdmin);
+    }
+
+    function acceptPauseAdmin() external {
+        require(msg.sender == pendingPauseAdmin, "YieldVault: not pending admin");
+        emit PauseAdminTransferred(pauseAdmin, msg.sender);
+        pauseAdmin = msg.sender;
+        pendingPauseAdmin = address(0);
     }
 
     // --- View ---

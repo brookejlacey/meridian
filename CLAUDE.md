@@ -24,7 +24,7 @@ All contracts are Solidity 0.8.27, tested with Foundry, deployed on Avalanche Fu
 
 ```bash
 forge build                              # Compile all contracts
-forge test                               # Run all 536 tests (includes 10k-run fuzz + invariants)
+forge test                               # Run all 617 tests (includes 10k-run fuzz + invariants)
 forge test --match-contract <Name> -vv   # Run specific test suite with verbosity
 cd frontend && npm run build             # Build Next.js frontend
 cd indexer && pnpm dev                   # Start Ponder indexer (localhost:42069)

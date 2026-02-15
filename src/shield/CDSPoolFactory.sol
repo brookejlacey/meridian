@@ -2,6 +2,7 @@
 pragma solidity 0.8.27;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {CDSPool} from "./CDSPool.sol";
 import {ICDSPool} from "../interfaces/ICDSPool.sol";
 
@@ -10,7 +11,7 @@ import {ICDSPool} from "../interfaces/ICDSPool.sol";
 /// @dev Tracks pools by ID, reference asset, and creator.
 ///      Owner can authorize pool settlements (recovery rate from oracle/governance).
 ///      Protocol fee configuration is set at factory level and passed to new pools.
-contract CDSPoolFactory is Ownable {
+contract CDSPoolFactory is Ownable2Step {
     // --- State ---
     uint256 public poolCount;
     mapping(uint256 id => address pool) public pools;

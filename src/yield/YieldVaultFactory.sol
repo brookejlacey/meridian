@@ -68,4 +68,25 @@ contract YieldVaultFactory {
     function getVault(uint256 vaultId) external view returns (address) {
         return vaults[vaultId];
     }
+
+    // --- Ownership Transfer (Two-Step) ---
+
+    address public pendingOwner;
+
+    event OwnershipTransferStarted(address indexed previousOwner, address indexed newOwner);
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+
+    function transferOwnership(address newOwner) external {
+        require(msg.sender == owner, "YieldVaultFactory: not owner");
+        require(newOwner != address(0), "YieldVaultFactory: zero address");
+        pendingOwner = newOwner;
+        emit OwnershipTransferStarted(owner, newOwner);
+    }
+
+    function acceptOwnership() external {
+        require(msg.sender == pendingOwner, "YieldVaultFactory: not pending owner");
+        emit OwnershipTransferred(owner, msg.sender);
+        owner = msg.sender;
+        pendingOwner = address(0);
+    }
 }

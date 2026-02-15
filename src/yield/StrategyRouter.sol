@@ -257,4 +257,24 @@ contract StrategyRouter is ReentrancyGuard, Pausable {
     function unpause() external onlyGovernance {
         _unpause();
     }
+
+    // --- Governance Transfer (Two-Step) ---
+
+    address public pendingGovernance;
+
+    event GovernanceTransferStarted(address indexed previousGov, address indexed newGov);
+    event GovernanceTransferred(address indexed previousGov, address indexed newGov);
+
+    function transferGovernance(address newGov) external onlyGovernance {
+        require(newGov != address(0), "StrategyRouter: zero address");
+        pendingGovernance = newGov;
+        emit GovernanceTransferStarted(governance, newGov);
+    }
+
+    function acceptGovernance() external {
+        require(msg.sender == pendingGovernance, "StrategyRouter: not pending governance");
+        emit GovernanceTransferred(governance, msg.sender);
+        governance = msg.sender;
+        pendingGovernance = address(0);
+    }
 }

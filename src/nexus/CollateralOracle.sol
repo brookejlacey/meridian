@@ -2,6 +2,7 @@
 pragma solidity 0.8.27;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {MeridianMath} from "../libraries/MeridianMath.sol";
 
 /// @title CollateralOracle
@@ -16,7 +17,7 @@ import {MeridianMath} from "../libraries/MeridianMath.sol";
 ///        Stablecoins:    9500 (95%)
 ///
 ///      Collateral value = amount * price * riskWeight / (1e18 * BPS)
-contract CollateralOracle is Ownable {
+contract CollateralOracle is Ownable2Step {
     using MeridianMath for uint256;
 
     // --- State ---

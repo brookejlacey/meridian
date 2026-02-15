@@ -5,6 +5,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {INexusVault} from "../interfaces/INexusVault.sol";
 import {CollateralOracle} from "./CollateralOracle.sol";
 import {MeridianMath} from "../libraries/MeridianMath.sol";
@@ -20,7 +21,7 @@ import {MeridianMath} from "../libraries/MeridianMath.sol";
 ///        3 = LIQUIDATION_COMPLETE: (uint8 msgType, address user, uint256 proceeds)
 ///
 ///      MVP: uses MockTeleporter. In production, extends TeleporterRegistryOwnableApp.
-contract NexusVault is INexusVault, ReentrancyGuard, Ownable {
+contract NexusVault is INexusVault, ReentrancyGuard, Ownable2Step {
     using SafeERC20 for IERC20;
     using MeridianMath for uint256;
 

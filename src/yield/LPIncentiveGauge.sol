@@ -100,10 +100,21 @@ contract LPIncentiveGauge is ReentrancyGuard, Pausable {
         emit RewardAdded(reward, duration);
     }
 
+    address public pendingGovernance;
+
+    event GovernanceTransferStarted(address indexed previousGov, address indexed newGov);
+
     function transferGovernance(address newGov) external onlyGovernance {
-        require(newGov != address(0), "LPIncentiveGauge: zero governance");
-        emit GovernanceTransferred(governance, newGov);
-        governance = newGov;
+        require(newGov != address(0), "LPIncentiveGauge: zero address");
+        pendingGovernance = newGov;
+        emit GovernanceTransferStarted(governance, newGov);
+    }
+
+    function acceptGovernance() external {
+        require(msg.sender == pendingGovernance, "LPIncentiveGauge: not pending governance");
+        emit GovernanceTransferred(governance, msg.sender);
+        governance = msg.sender;
+        pendingGovernance = address(0);
     }
 
     // --- User Functions ---

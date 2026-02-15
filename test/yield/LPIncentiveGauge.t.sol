@@ -268,6 +268,13 @@ contract LPIncentiveGaugeTest is Test {
         vm.prank(gov);
         gauge.transferGovernance(alice);
 
+        // Two-step: governance not changed yet
+        assertEq(gauge.governance(), gov);
+        assertEq(gauge.pendingGovernance(), alice);
+
+        // Accept
+        vm.prank(alice);
+        gauge.acceptGovernance();
         assertEq(gauge.governance(), alice);
     }
 

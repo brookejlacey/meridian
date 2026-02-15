@@ -41,8 +41,8 @@ contract CDSPool is ICDSPool, ReentrancyGuard, Pausable {
     address public factory;
 
     // --- Protocol Fee ---
-    address public immutable treasury;
-    address public immutable protocolAdmin;
+    address public treasury;
+    address public protocolAdmin;
     uint256 public protocolFeeBps;
     uint256 public constant MAX_PROTOCOL_FEE_BPS = 5000; // 50%
     uint256 public totalProtocolFeesCollected;
@@ -551,6 +551,35 @@ contract CDSPool is ICDSPool, ReentrancyGuard, Pausable {
     function unpause() external {
         require(msg.sender == protocolAdmin, "CDSPool: not protocol admin");
         _unpause();
+    }
+
+    // --- Access Control Transfers (Two-Step) ---
+
+    address public pendingProtocolAdmin;
+
+    event ProtocolAdminTransferStarted(address indexed previousAdmin, address indexed newAdmin);
+    event ProtocolAdminTransferred(address indexed previousAdmin, address indexed newAdmin);
+    event TreasuryUpdated(address indexed previousTreasury, address indexed newTreasury);
+
+    function transferProtocolAdmin(address newAdmin) external {
+        require(msg.sender == protocolAdmin, "CDSPool: not protocol admin");
+        require(newAdmin != address(0), "CDSPool: zero address");
+        pendingProtocolAdmin = newAdmin;
+        emit ProtocolAdminTransferStarted(protocolAdmin, newAdmin);
+    }
+
+    function acceptProtocolAdmin() external {
+        require(msg.sender == pendingProtocolAdmin, "CDSPool: not pending admin");
+        emit ProtocolAdminTransferred(protocolAdmin, msg.sender);
+        protocolAdmin = msg.sender;
+        pendingProtocolAdmin = address(0);
+    }
+
+    function setTreasury(address newTreasury) external {
+        require(msg.sender == protocolAdmin, "CDSPool: not protocol admin");
+        require(newTreasury != address(0), "CDSPool: zero address");
+        emit TreasuryUpdated(treasury, newTreasury);
+        treasury = newTreasury;
     }
 
     // ========== Internal ==========

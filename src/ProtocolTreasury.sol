@@ -4,13 +4,14 @@ pragma solidity 0.8.27;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {IProtocolTreasury} from "./interfaces/IProtocolTreasury.sol";
 
 /// @title ProtocolTreasury
 /// @notice Simple receiver for protocol fees. Owner can withdraw funds.
 /// @dev Protocol contracts push fees via safeTransfer. No deposit function needed.
-contract ProtocolTreasury is IProtocolTreasury, Ownable, ReentrancyGuard {
+contract ProtocolTreasury is IProtocolTreasury, Ownable2Step, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     constructor(address initialOwner) Ownable(initialOwner) {}

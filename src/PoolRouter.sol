@@ -24,7 +24,7 @@ contract PoolRouter is ReentrancyGuard, Pausable {
     using MeridianMath for uint256;
 
     CDSPoolFactory public immutable FACTORY;
-    address public immutable pauseAdmin;
+    address public pauseAdmin;
 
     struct FillResult {
         address pool;
@@ -190,6 +190,27 @@ contract PoolRouter is ReentrancyGuard, Pausable {
     function unpause() external {
         require(msg.sender == pauseAdmin, "PoolRouter: not pause admin");
         _unpause();
+    }
+
+    // --- Pause Admin Transfer (Two-Step) ---
+
+    address public pendingPauseAdmin;
+
+    event PauseAdminTransferStarted(address indexed previousAdmin, address indexed newAdmin);
+    event PauseAdminTransferred(address indexed previousAdmin, address indexed newAdmin);
+
+    function transferPauseAdmin(address newAdmin) external {
+        require(msg.sender == pauseAdmin, "PoolRouter: not pause admin");
+        require(newAdmin != address(0), "PoolRouter: zero address");
+        pendingPauseAdmin = newAdmin;
+        emit PauseAdminTransferStarted(pauseAdmin, newAdmin);
+    }
+
+    function acceptPauseAdmin() external {
+        require(msg.sender == pendingPauseAdmin, "PoolRouter: not pending admin");
+        emit PauseAdminTransferred(pauseAdmin, msg.sender);
+        pauseAdmin = msg.sender;
+        pendingPauseAdmin = address(0);
     }
 
     // --- Internal ---

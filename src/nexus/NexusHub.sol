@@ -5,6 +5,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {INexusHub} from "../interfaces/INexusHub.sol";
 import {CollateralOracle} from "./CollateralOracle.sol";
@@ -27,7 +28,7 @@ import {IInsurancePool} from "../interfaces/IInsurancePool.sol";
 ///      3. NexusHub receives and updates cross-chain collateral values
 ///      4. If unhealthy, anyone can call triggerLiquidation()
 ///      5. Hub sends liquidation message to remote NexusVault
-contract NexusHub is INexusHub, ReentrancyGuard, Ownable, Pausable {
+contract NexusHub is INexusHub, ReentrancyGuard, Ownable2Step, Pausable {
     using SafeERC20 for IERC20;
     using MeridianMath for uint256;
 
