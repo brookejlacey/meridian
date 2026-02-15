@@ -3,6 +3,7 @@ pragma solidity 0.8.27;
 
 import {MeridianMath} from "../libraries/MeridianMath.sol";
 import {IForgeVault} from "../interfaces/IForgeVault.sol";
+import {IAIRiskOracle} from "../interfaces/IAIRiskOracle.sol";
 
 /// @title ShieldPricer
 /// @notice Quotes indicative CDS spreads using public pool-level metrics.
@@ -42,9 +43,16 @@ contract ShieldPricer {
 
     address public owner;
 
+    /// @notice AI risk oracle for dynamic credit risk pricing
+    IAIRiskOracle public riskOracle;
+    /// @notice Multiplier for converting PD to collateral ratio reduction (WAD, default 5e18)
+    uint256 public riskAdjustmentWad = 5e18;
+
     // --- Events ---
     event DefaultParamsUpdated(PricingParams params);
     event VaultOverrideSet(address indexed vault, PricingParams params);
+    event RiskOracleUpdated(address indexed riskOracle);
+    event RiskAdjustmentUpdated(uint256 newAdjustment);
 
     modifier onlyOwner() {
         require(msg.sender == owner, "ShieldPricer: not owner");
@@ -83,6 +91,23 @@ contract ShieldPricer {
         // In production, this would factor in mark-to-market of underlying
         if (pool.totalDeposited > 0) {
             metrics.collateralRatio = MeridianMath.WAD; // 100% if no losses
+        }
+
+        // Overlay AI risk assessment if oracle is set and score is fresh
+        if (address(riskOracle) != address(0)) {
+            try riskOracle.getDefaultProbability(vault) returns (uint256 pd) {
+                // Convert PD to collateral ratio reduction:
+                // Higher PD → lower effective collateral ratio
+                // adjustment = pd * riskAdjustmentWad (e.g., 2% PD * 5x = 10% reduction)
+                uint256 adjustment = MeridianMath.wadMul(pd, riskAdjustmentWad);
+                if (adjustment < metrics.collateralRatio) {
+                    metrics.collateralRatio -= adjustment;
+                } else {
+                    metrics.collateralRatio = 0;
+                }
+            } catch {
+                // Oracle unavailable or stale — fall through with existing ratio
+            }
         }
 
         metrics.poolTvl = pool.totalDeposited;
@@ -129,6 +154,18 @@ contract ShieldPricer {
         vaultOverrides[vault] = params_;
         hasOverride[vault] = true;
         emit VaultOverrideSet(vault, params_);
+    }
+
+    /// @notice Set the AI risk oracle for dynamic credit risk pricing
+    function setRiskOracle(address riskOracle_) external onlyOwner {
+        riskOracle = IAIRiskOracle(riskOracle_);
+        emit RiskOracleUpdated(riskOracle_);
+    }
+
+    /// @notice Set the risk adjustment multiplier (WAD)
+    function setRiskAdjustment(uint256 adjustment) external onlyOwner {
+        riskAdjustmentWad = adjustment;
+        emit RiskAdjustmentUpdated(adjustment);
     }
 
     // --- Internal ---
