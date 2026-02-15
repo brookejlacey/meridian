@@ -118,7 +118,7 @@ contract SecondaryMarketRouterTest is Test {
         underlying.mint(address(dex), 10_000_000e18);
 
         // --- Deploy Router ---
-        router = new SecondaryMarketRouter(address(dex));
+        router = new SecondaryMarketRouter(address(dex), address(this));
 
         // --- Fund user ---
         underlying.mint(user, 1_000_000e18);
@@ -142,7 +142,7 @@ contract SecondaryMarketRouterTest is Test {
 
     function test_constructor_revert_zeroDex() public {
         vm.expectRevert("SecondaryMarketRouter: zero dex");
-        new SecondaryMarketRouter(address(0));
+        new SecondaryMarketRouter(address(0), address(this));
     }
 
     // --- Simple Swap ---

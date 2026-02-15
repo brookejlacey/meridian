@@ -15,4 +15,8 @@ interface IInsurancePool {
     function collectPremium(address from, uint256 borrowAmount) external;
     function getReserves() external view returns (uint256);
     function getEffectiveBalance(address depositor) external view returns (uint256);
+
+    // --- Pausable ---
+    function pause() external;
+    function unpause() external;
 }

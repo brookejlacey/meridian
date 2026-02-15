@@ -38,7 +38,7 @@ contract FlashRebalancerTest is Test {
     function setUp() public {
         usdc = new MockYieldSource("USDC", "USDC", 18);
         flashLender = new MockFlashLender();
-        rebalancer = new FlashRebalancer(address(flashLender));
+        rebalancer = new FlashRebalancer(address(flashLender), address(this));
         factory = new ForgeFactory(treasury, protocolAdmin, 0);
 
         // Predict vault address for circular dependency

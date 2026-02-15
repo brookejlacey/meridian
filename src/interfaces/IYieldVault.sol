@@ -27,4 +27,8 @@ interface IYieldVault is IERC4626 {
 
     event Compounded(uint256 yieldClaimed, uint256 reinvested, address caller);
     event EmergencyWithdrawExecuted(uint256 amountRecovered);
+
+    // --- Pausable ---
+    function pause() external;
+    function unpause() external;
 }

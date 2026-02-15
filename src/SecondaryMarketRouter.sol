@@ -4,6 +4,7 @@ pragma solidity 0.8.27;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {ISecondaryMarketRouter} from "./interfaces/ISecondaryMarketRouter.sol";
 import {IForgeVault} from "./interfaces/IForgeVault.sol";
 import {ICDSContract} from "./interfaces/ICDSContract.sol";
@@ -18,19 +19,22 @@ import {ICDSContract} from "./interfaces/ICDSContract.sol";
 ///      1. swap(): pure DEX swap (tranche token <-> tranche token, or tranche <-> underlying)
 ///      2. swapAndReinvest(): sell tranche token -> get underlying -> invest in different tranche/vault
 ///      3. swapAndHedge(): sell tranche token -> get underlying -> invest + buy CDS protection
-contract SecondaryMarketRouter is ISecondaryMarketRouter, ReentrancyGuard {
+contract SecondaryMarketRouter is ISecondaryMarketRouter, ReentrancyGuard, Pausable {
     using SafeERC20 for IERC20;
 
     /// @notice DEX router interface (MockDEXRouter in testing, Uniswap/TraderJoe in production)
     address public immutable dex;
+    address public immutable pauseAdmin;
 
-    constructor(address dex_) {
+    constructor(address dex_, address pauseAdmin_) {
         require(dex_ != address(0), "SecondaryMarketRouter: zero dex");
+        require(pauseAdmin_ != address(0), "SecondaryMarketRouter: zero pause admin");
         dex = dex_;
+        pauseAdmin = pauseAdmin_;
     }
 
     /// @notice Simple swap via DEX
-    function swap(SwapParams calldata p) external override nonReentrant returns (uint256 amountOut) {
+    function swap(SwapParams calldata p) external override nonReentrant whenNotPaused returns (uint256 amountOut) {
         require(p.amountIn > 0, "SecondaryMarketRouter: zero amount");
 
         IERC20(p.tokenIn).safeTransferFrom(msg.sender, address(this), p.amountIn);
@@ -52,7 +56,7 @@ contract SecondaryMarketRouter is ISecondaryMarketRouter, ReentrancyGuard {
     }
 
     /// @notice Sell tranche token on DEX, reinvest underlying into a different tranche
-    function swapAndReinvest(SwapAndReinvestParams calldata p) external override nonReentrant returns (uint256 invested) {
+    function swapAndReinvest(SwapAndReinvestParams calldata p) external override nonReentrant whenNotPaused returns (uint256 invested) {
         require(p.amountIn > 0, "SecondaryMarketRouter: zero amount");
         require(p.vault != address(0), "SecondaryMarketRouter: zero vault");
 
@@ -82,7 +86,7 @@ contract SecondaryMarketRouter is ISecondaryMarketRouter, ReentrancyGuard {
     }
 
     /// @notice Sell tranche token on DEX, reinvest + buy CDS hedge
-    function swapAndHedge(SwapAndHedgeParams calldata p) external override nonReentrant returns (uint256 invested) {
+    function swapAndHedge(SwapAndHedgeParams calldata p) external override nonReentrant whenNotPaused returns (uint256 invested) {
         require(p.amountIn > 0, "SecondaryMarketRouter: zero amount");
         require(p.vault != address(0), "SecondaryMarketRouter: zero vault");
         require(p.cds != address(0), "SecondaryMarketRouter: zero cds");
@@ -128,6 +132,18 @@ contract SecondaryMarketRouter is ISecondaryMarketRouter, ReentrancyGuard {
         if (remaining > 0) {
             IERC20(underlying).safeTransfer(msg.sender, remaining);
         }
+    }
+
+    // --- Pausable ---
+
+    function pause() external {
+        require(msg.sender == pauseAdmin, "SecondaryMarketRouter: not pause admin");
+        _pause();
+    }
+
+    function unpause() external {
+        require(msg.sender == pauseAdmin, "SecondaryMarketRouter: not pause admin");
+        _unpause();
     }
 
     /// @notice Quote a swap (view)

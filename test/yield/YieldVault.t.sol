@@ -61,7 +61,7 @@ contract YieldVaultTest is Test {
         forgeVault = ForgeVault(fv);
 
         // Create YieldVault via factory
-        yvFactory = new YieldVaultFactory();
+        yvFactory = new YieldVaultFactory(address(this));
         address yvAddr = yvFactory.createYieldVault(fv, 0, "Auto Senior", "acSR", DAY);
         yv = YieldVault(yvAddr);
 
@@ -299,7 +299,7 @@ contract YieldVaultFactoryTest is Test {
             distributionInterval: 7 days
         }));
         forgeVault = ForgeVault(fv);
-        yvFactory = new YieldVaultFactory();
+        yvFactory = new YieldVaultFactory(address(this));
     }
 
     function test_createYieldVault() public {

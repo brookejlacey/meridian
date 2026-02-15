@@ -34,4 +34,8 @@ interface INexusHub {
     function totalProtocolFeesCollected() external view returns (uint256);
     function setTreasury(address treasury_) external;
     function setLiquidationFeeBps(uint256 feeBps) external;
+
+    // --- Pausable ---
+    function pause() external;
+    function unpause() external;
 }

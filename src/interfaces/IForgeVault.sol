@@ -59,4 +59,8 @@ interface IForgeVault {
     function protocolFeeBps() external view returns (uint256);
     function totalProtocolFeesCollected() external view returns (uint256);
     function setProtocolFee(uint256 newFeeBps) external;
+
+    // --- Pausable Functions ---
+    function pause() external;
+    function unpause() external;
 }

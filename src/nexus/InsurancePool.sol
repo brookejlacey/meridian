@@ -5,6 +5,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {IInsurancePool} from "../interfaces/IInsurancePool.sol";
 import {MeridianMath} from "../libraries/MeridianMath.sol";
 
@@ -14,7 +15,7 @@ import {MeridianMath} from "../libraries/MeridianMath.sol";
 ///      to cover obligations, NexusHub calls coverShortfall() to absorb the difference.
 ///      Depositors share losses pro-rata if the pool absorbs shortfalls.
 ///      Funded by direct deposits + insurance premiums (% of obligations).
-contract InsurancePool is IInsurancePool, ReentrancyGuard, Ownable {
+contract InsurancePool is IInsurancePool, ReentrancyGuard, Ownable, Pausable {
     using SafeERC20 for IERC20;
     using MeridianMath for uint256;
 
@@ -47,7 +48,7 @@ contract InsurancePool is IInsurancePool, ReentrancyGuard, Ownable {
     }
 
     /// @notice Deposit reserves into the insurance pool
-    function deposit(uint256 amount) external override nonReentrant {
+    function deposit(uint256 amount) external override nonReentrant whenNotPaused {
         require(amount > 0, "InsurancePool: zero amount");
         reserveToken.safeTransferFrom(msg.sender, address(this), amount);
         deposits[msg.sender] += amount;
@@ -98,7 +99,7 @@ contract InsurancePool is IInsurancePool, ReentrancyGuard, Ownable {
     function collectPremium(
         address from,
         uint256 borrowAmount
-    ) external override nonReentrant {
+    ) external override nonReentrant whenNotPaused {
         if (premiumRateBps == 0) return;
         uint256 premium = MeridianMath.bpsMul(borrowAmount, premiumRateBps);
         if (premium == 0) return;
@@ -138,5 +139,15 @@ contract InsurancePool is IInsurancePool, ReentrancyGuard, Ownable {
     function _effectiveBalance(address depositor) internal view returns (uint256) {
         if (totalDeposited == 0) return 0;
         return (deposits[depositor] * totalReserves) / totalDeposited;
+    }
+
+    // --- Pausable ---
+
+    function pause() external onlyOwner {
+        _pause();
+    }
+
+    function unpause() external onlyOwner {
+        _unpause();
     }
 }

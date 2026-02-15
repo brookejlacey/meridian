@@ -69,7 +69,7 @@ contract YieldIntegrationTest is Test {
         forgeVault = ForgeVault(fv);
 
         // --- YieldVaults ---
-        yvFactory = new YieldVaultFactory();
+        yvFactory = new YieldVaultFactory(address(this));
         yvSenior = YieldVault(yvFactory.createYieldVault(fv, 0, "acSR", "acSR", DAY));
         yvMezz = YieldVault(yvFactory.createYieldVault(fv, 1, "acMZ", "acMZ", DAY));
 

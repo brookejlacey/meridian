@@ -4,6 +4,7 @@ pragma solidity 0.8.27;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {ICDSPool} from "./interfaces/ICDSPool.sol";
 import {CDSPoolFactory} from "./shield/CDSPoolFactory.sol";
 import {MeridianMath} from "./libraries/MeridianMath.sol";
@@ -18,11 +19,12 @@ import {MeridianMath} from "./libraries/MeridianMath.sol";
 ///      2. Quote each pool for the full remaining notional
 ///      3. Fill from cheapest to most expensive
 ///      4. Return aggregated positions across pools
-contract PoolRouter is ReentrancyGuard {
+contract PoolRouter is ReentrancyGuard, Pausable {
     using SafeERC20 for IERC20;
     using MeridianMath for uint256;
 
     CDSPoolFactory public immutable FACTORY;
+    address public immutable pauseAdmin;
 
     struct FillResult {
         address pool;
@@ -47,9 +49,11 @@ contract PoolRouter is ReentrancyGuard {
         uint256 poolsUsed
     );
 
-    constructor(address factory_) {
+    constructor(address factory_, address pauseAdmin_) {
         require(factory_ != address(0), "PoolRouter: zero factory");
+        require(pauseAdmin_ != address(0), "PoolRouter: zero pause admin");
         FACTORY = CDSPoolFactory(factory_);
+        pauseAdmin = pauseAdmin_;
     }
 
     /// @notice Buy protection routed across multiple pools for best pricing
@@ -61,7 +65,7 @@ contract PoolRouter is ReentrancyGuard {
         address referenceAsset,
         uint256 totalNotional,
         uint256 maxTotalPremium
-    ) external nonReentrant returns (FillResult[] memory results) {
+    ) external nonReentrant whenNotPaused returns (FillResult[] memory results) {
         require(totalNotional > 0, "PoolRouter: zero notional");
 
         // Get all pool IDs for this reference asset
@@ -174,6 +178,18 @@ contract PoolRouter is ReentrancyGuard {
             mstore(mload(add(quote, 0x20)), fillCount)
             mstore(mload(add(quote, 0x40)), fillCount)
         }
+    }
+
+    // --- Pausable ---
+
+    function pause() external {
+        require(msg.sender == pauseAdmin, "PoolRouter: not pause admin");
+        _pause();
+    }
+
+    function unpause() external {
+        require(msg.sender == pauseAdmin, "PoolRouter: not pause admin");
+        _unpause();
     }
 
     // --- Internal ---

@@ -79,7 +79,7 @@ contract DeployPhase5 is Script {
         vm.startBroadcast(deployerPrivateKey);
 
         _deployCDSInfra(deployer);
-        _deployComposability();
+        _deployComposability(deployer);
         _deployYieldLayer(deployer);
         _createCDSPool();
         _createYieldVaults();
@@ -104,10 +104,10 @@ contract DeployPhase5 is Script {
         console.log("  MockFlashLender:", address(flashLender));
     }
 
-    function _deployComposability() internal {
+    function _deployComposability(address deployer) internal {
         console.log("[2/7] Deploying composability routers...");
-        poolRouter = new PoolRouter(address(poolFactory));
-        flashRebalancer = new FlashRebalancer(address(flashLender));
+        poolRouter = new PoolRouter(address(poolFactory), deployer);
+        flashRebalancer = new FlashRebalancer(address(flashLender), deployer);
         liquidationBot = new LiquidationBot(
             creditOracle,
             address(poolFactory),
@@ -121,7 +121,7 @@ contract DeployPhase5 is Script {
 
     function _deployYieldLayer(address deployer) internal {
         console.log("[3/7] Deploying yield layer...");
-        yvFactory = new YieldVaultFactory();
+        yvFactory = new YieldVaultFactory(deployer);
         strategyRouter = new StrategyRouter(deployer);
 
         console.log("  YieldVaultFactory:", address(yvFactory));

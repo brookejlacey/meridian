@@ -146,8 +146,8 @@ contract Demo is Script {
             500      // 5% penalty
         );
 
-        poolRouter = new PoolRouter(address(poolFactory));
-        flashRebalancer = new FlashRebalancer(address(flashLender));
+        poolRouter = new PoolRouter(address(poolFactory), deployer);
+        flashRebalancer = new FlashRebalancer(address(flashLender), deployer);
         liquidationBot = new LiquidationBot(
             address(oracle),
             address(poolFactory),
@@ -461,7 +461,7 @@ contract Demo is Script {
         vault3 = ForgeVault(v3addr);
 
         // Deploy YieldVault factory and create vaults for each tranche
-        yvFactory = new YieldVaultFactory();
+        yvFactory = new YieldVaultFactory(deployer);
         address yvSeniorAddr = yvFactory.createYieldVault(v3addr, 0, "Auto-Compound Senior", "acSR", 1 hours);
         address yvMezzAddr = yvFactory.createYieldVault(v3addr, 1, "Auto-Compound Mezzanine", "acMZ", 1 hours);
         address yvEquityAddr = yvFactory.createYieldVault(v3addr, 2, "Auto-Compound Equity", "acEQ", 1 hours);

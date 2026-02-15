@@ -109,7 +109,7 @@ contract HedgeRouterTest is Test {
         cds = CDSContract(cdsAddr);
 
         // --- Deploy Router ---
-        router = new HedgeRouter(address(pricer), address(shieldFactory));
+        router = new HedgeRouter(address(pricer), address(shieldFactory), address(this));
 
         // --- Fund actors ---
         underlying.mint(user, 1_000_000e18);
@@ -511,11 +511,11 @@ contract HedgeRouterTest is Test {
 
     function test_constructor_revert_zeroPricer() public {
         vm.expectRevert("HedgeRouter: zero pricer");
-        new HedgeRouter(address(0), address(shieldFactory));
+        new HedgeRouter(address(0), address(shieldFactory), address(this));
     }
 
     function test_constructor_revert_zeroFactory() public {
         vm.expectRevert("HedgeRouter: zero factory");
-        new HedgeRouter(address(pricer), address(0));
+        new HedgeRouter(address(pricer), address(0), address(this));
     }
 }

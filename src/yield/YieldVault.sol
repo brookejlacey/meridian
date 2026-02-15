@@ -6,6 +6,7 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {IForgeVault} from "../interfaces/IForgeVault.sol";
 import {MeridianMath} from "../libraries/MeridianMath.sol";
 
@@ -18,7 +19,7 @@ import {MeridianMath} from "../libraries/MeridianMath.sol";
 ///      Example: Alice deposits 100k USDC into the Senior YieldVault.
 ///      Keeper calls compound() weekly → claims yield → reinvests → share price rises.
 ///      Alice withdraws later with more USDC than she deposited.
-contract YieldVault is ERC4626, ReentrancyGuard {
+contract YieldVault is ERC4626, ReentrancyGuard, Pausable {
     using SafeERC20 for IERC20;
 
     /// @dev Virtual offset to prevent ERC4626 inflation attack (10^3 virtual shares)
@@ -29,6 +30,7 @@ contract YieldVault is ERC4626, ReentrancyGuard {
     // --- Immutables ---
     IForgeVault public immutable FORGE_VAULT;
     uint8 public immutable TRANCHE_ID;
+    address public immutable PAUSE_ADMIN;
 
     // --- State ---
     uint256 public totalInvested;
@@ -45,13 +47,16 @@ contract YieldVault is ERC4626, ReentrancyGuard {
         uint8 trancheId_,
         string memory name_,
         string memory symbol_,
-        uint256 compoundInterval_
+        uint256 compoundInterval_,
+        address pauseAdmin_
     ) ERC20(name_, symbol_) ERC4626(IERC20(address(IForgeVault(forgeVault_).underlyingAsset()))) {
         require(forgeVault_ != address(0), "YieldVault: zero vault");
         require(trancheId_ < 3, "YieldVault: invalid tranche");
+        require(pauseAdmin_ != address(0), "YieldVault: zero pause admin");
 
         FORGE_VAULT = IForgeVault(forgeVault_);
         TRANCHE_ID = trancheId_;
+        PAUSE_ADMIN = pauseAdmin_;
         compoundInterval = compoundInterval_;
         lastCompoundTime = block.timestamp;
 
@@ -124,11 +129,11 @@ contract YieldVault is ERC4626, ReentrancyGuard {
 
     // --- ERC4626 Public Entry Points (nonReentrant at public boundary) ---
 
-    function deposit(uint256 assets, address receiver) public override nonReentrant returns (uint256) {
+    function deposit(uint256 assets, address receiver) public override nonReentrant whenNotPaused returns (uint256) {
         return super.deposit(assets, receiver);
     }
 
-    function mint(uint256 shares, address receiver) public override nonReentrant returns (uint256) {
+    function mint(uint256 shares, address receiver) public override nonReentrant whenNotPaused returns (uint256) {
         return super.mint(shares, receiver);
     }
 
@@ -145,7 +150,7 @@ contract YieldVault is ERC4626, ReentrancyGuard {
     /// @notice Harvest yield from ForgeVault and reinvest into the same tranche.
     /// @dev Callable by anyone (keepers). Rate-limited by compoundInterval.
     /// @return harvested Amount of yield claimed and reinvested
-    function compound() external nonReentrant returns (uint256 harvested) {
+    function compound() external nonReentrant whenNotPaused returns (uint256 harvested) {
         require(
             block.timestamp >= lastCompoundTime + compoundInterval,
             "YieldVault: too soon"
@@ -190,6 +195,18 @@ contract YieldVault is ERC4626, ReentrancyGuard {
 
         recovered = IERC20(asset()).balanceOf(address(this));
         emit EmergencyWithdrawExecuted(recovered);
+    }
+
+    // --- Pausable ---
+
+    function pause() external {
+        require(msg.sender == PAUSE_ADMIN, "YieldVault: not pause admin");
+        _pause();
+    }
+
+    function unpause() external {
+        require(msg.sender == PAUSE_ADMIN, "YieldVault: not pause admin");
+        _unpause();
     }
 
     // --- View ---

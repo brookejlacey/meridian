@@ -5,6 +5,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {INexusHub} from "../interfaces/INexusHub.sol";
 import {CollateralOracle} from "./CollateralOracle.sol";
 import {MarginAccount} from "../libraries/MarginAccount.sol";
@@ -26,7 +27,7 @@ import {IInsurancePool} from "../interfaces/IInsurancePool.sol";
 ///      3. NexusHub receives and updates cross-chain collateral values
 ///      4. If unhealthy, anyone can call triggerLiquidation()
 ///      5. Hub sends liquidation message to remote NexusVault
-contract NexusHub is INexusHub, ReentrancyGuard, Ownable {
+contract NexusHub is INexusHub, ReentrancyGuard, Ownable, Pausable {
     using SafeERC20 for IERC20;
     using MeridianMath for uint256;
 
@@ -116,7 +117,7 @@ contract NexusHub is INexusHub, ReentrancyGuard, Ownable {
     // --- User Functions ---
 
     /// @notice Open a margin account
-    function openMarginAccount() external override {
+    function openMarginAccount() external override whenNotPaused {
         require(!hasAccount[msg.sender], "NexusHub: account exists");
         hasAccount[msg.sender] = true;
         emit MarginAccountOpened(msg.sender);
@@ -125,7 +126,7 @@ contract NexusHub is INexusHub, ReentrancyGuard, Ownable {
     /// @notice Deposit collateral on the local chain (C-Chain)
     /// @param asset ERC-20 collateral token
     /// @param amount Amount to deposit
-    function depositCollateral(address asset, uint256 amount) external override nonReentrant {
+    function depositCollateral(address asset, uint256 amount) external override nonReentrant whenNotPaused {
         require(hasAccount[msg.sender], "NexusHub: no account");
         require(amount > 0, "NexusHub: zero amount");
         require(oracle.isSupported(asset), "NexusHub: unsupported asset");
@@ -420,5 +421,15 @@ contract NexusHub is INexusHub, ReentrancyGuard, Ownable {
         uint256 oldFeeBps = liquidationFeeBps;
         liquidationFeeBps = feeBps;
         emit LiquidationFeeUpdated(oldFeeBps, feeBps);
+    }
+
+    // --- Pausable ---
+
+    function pause() external onlyOwner {
+        _pause();
+    }
+
+    function unpause() external onlyOwner {
+        _unpause();
     }
 }

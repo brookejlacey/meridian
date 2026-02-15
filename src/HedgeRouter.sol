@@ -4,6 +4,7 @@ pragma solidity 0.8.27;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {IHedgeRouter} from "./interfaces/IHedgeRouter.sol";
 import {IForgeVault} from "./interfaces/IForgeVault.sol";
 import {ICDSContract} from "./interfaces/ICDSContract.sol";
@@ -15,22 +16,25 @@ import {PremiumEngine} from "./shield/PremiumEngine.sol";
 /// @notice Composes Forge investing + Shield protection into a single atomic transaction.
 /// @dev Stateless router — user is the direct owner of tranche tokens and CDS buyer position.
 ///      Token flow: user approves router → router pulls tokens → approves vault/CDS → executes.
-contract HedgeRouter is IHedgeRouter, ReentrancyGuard {
+contract HedgeRouter is IHedgeRouter, ReentrancyGuard, Pausable {
     using SafeERC20 for IERC20;
 
     ShieldPricer public immutable pricer;
     ShieldFactory public immutable shieldFactory;
+    address public immutable pauseAdmin;
 
-    constructor(address pricer_, address shieldFactory_) {
+    constructor(address pricer_, address shieldFactory_, address pauseAdmin_) {
         require(pricer_ != address(0), "HedgeRouter: zero pricer");
         require(shieldFactory_ != address(0), "HedgeRouter: zero factory");
+        require(pauseAdmin_ != address(0), "HedgeRouter: zero pause admin");
         pricer = ShieldPricer(pricer_);
         shieldFactory = ShieldFactory(shieldFactory_);
+        pauseAdmin = pauseAdmin_;
     }
 
     /// @notice Invest in vault + buy protection on existing CDS atomically
     /// @param p Parameters: vault, trancheId, investAmount, cds address, maxPremium
-    function investAndHedge(InvestAndHedgeParams calldata p) external override nonReentrant {
+    function investAndHedge(InvestAndHedgeParams calldata p) external override nonReentrant whenNotPaused {
         require(p.vault != address(0), "HedgeRouter: zero vault");
         require(p.cds != address(0), "HedgeRouter: zero cds");
         require(p.investAmount > 0, "HedgeRouter: zero invest");
@@ -66,7 +70,7 @@ contract HedgeRouter is IHedgeRouter, ReentrancyGuard {
     /// @dev Creates an unmatched CDS (no seller yet). Buyer's premium is escrowed and
     ///      returned via expire() if no seller joins before maturity.
     /// @param p Parameters including CDS creation terms
-    function createAndHedge(CreateAndHedgeParams calldata p) external override nonReentrant {
+    function createAndHedge(CreateAndHedgeParams calldata p) external override nonReentrant whenNotPaused {
         require(p.vault != address(0), "HedgeRouter: zero vault");
         require(p.investAmount > 0, "HedgeRouter: zero invest");
         require(p.protectionAmount > 0, "HedgeRouter: zero protection");
@@ -105,6 +109,18 @@ contract HedgeRouter is IHedgeRouter, ReentrancyGuard {
         }
 
         emit HedgeCreated(msg.sender, p.vault, p.trancheId, p.investAmount, cds);
+    }
+
+    // --- Pausable ---
+
+    function pause() external {
+        require(msg.sender == pauseAdmin, "HedgeRouter: not pause admin");
+        _pause();
+    }
+
+    function unpause() external {
+        require(msg.sender == pauseAdmin, "HedgeRouter: not pause admin");
+        _unpause();
     }
 
     /// @notice Quote the estimated hedge cost for an investment

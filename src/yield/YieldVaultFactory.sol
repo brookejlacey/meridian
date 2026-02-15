@@ -7,6 +7,9 @@ import {YieldVault} from "./YieldVault.sol";
 /// @notice Creates and tracks YieldVault instances.
 /// @dev One YieldVault per (ForgeVault, trancheId) pair.
 contract YieldVaultFactory {
+    address public owner;
+    address public pauseAdmin;
+
     uint256 public vaultCount;
     mapping(uint256 => address) public vaults;
     mapping(address => mapping(uint8 => address)) public vaultByForgeAndTranche;
@@ -19,6 +22,12 @@ contract YieldVaultFactory {
         string name,
         string symbol
     );
+
+    constructor(address pauseAdmin_) {
+        require(pauseAdmin_ != address(0), "YieldVaultFactory: zero pause admin");
+        owner = msg.sender;
+        pauseAdmin = pauseAdmin_;
+    }
 
     /// @notice Create a new YieldVault wrapping a ForgeVault tranche
     function createYieldVault(
@@ -37,13 +46,19 @@ contract YieldVaultFactory {
 
         uint256 vaultId = vaultCount++;
 
-        YieldVault yv = new YieldVault(forgeVault, trancheId, name, symbol, compoundInterval);
+        YieldVault yv = new YieldVault(forgeVault, trancheId, name, symbol, compoundInterval, pauseAdmin);
         yieldVaultAddress = address(yv);
 
         vaults[vaultId] = yieldVaultAddress;
         vaultByForgeAndTranche[forgeVault][trancheId] = yieldVaultAddress;
 
         emit YieldVaultCreated(vaultId, yieldVaultAddress, forgeVault, trancheId, name, symbol);
+    }
+
+    function setPauseAdmin(address pauseAdmin_) external {
+        require(msg.sender == owner, "YieldVaultFactory: not owner");
+        require(pauseAdmin_ != address(0), "YieldVaultFactory: zero pause admin");
+        pauseAdmin = pauseAdmin_;
     }
 
     function getYieldVault(address forgeVault, uint8 trancheId) external view returns (address) {

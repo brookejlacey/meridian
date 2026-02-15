@@ -42,4 +42,8 @@ interface IHedgeRouter {
     function createAndHedge(CreateAndHedgeParams calldata params) external;
     function quoteHedge(address vault, uint256 investAmount, uint256 tenorDays)
         external view returns (uint256 spreadBps, uint256 estimatedPremium);
+
+    // --- Pausable ---
+    function pause() external;
+    function unpause() external;
 }

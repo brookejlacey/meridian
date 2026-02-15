@@ -4,6 +4,7 @@ pragma solidity 0.8.27;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {ICDSPool} from "../interfaces/ICDSPool.sol";
 import {ICreditEventOracle} from "../interfaces/ICreditEventOracle.sol";
 import {BondingCurve} from "../libraries/BondingCurve.sol";
@@ -23,7 +24,7 @@ import {MeridianMath} from "../libraries/MeridianMath.sol";
 ///
 ///      Settlement: on credit event, the pool pays out protection claims.
 ///      LPs bear the loss. Recovery rate determines partial payouts.
-contract CDSPool is ICDSPool, ReentrancyGuard {
+contract CDSPool is ICDSPool, ReentrancyGuard, Pausable {
     using SafeERC20 for IERC20;
     using MeridianMath for uint256;
 
@@ -114,6 +115,7 @@ contract CDSPool is ICDSPool, ReentrancyGuard {
         external
         override
         nonReentrant
+        whenNotPaused
         onlyActive
         returns (uint256 sharesOut)
     {
@@ -205,6 +207,7 @@ contract CDSPool is ICDSPool, ReentrancyGuard {
         external
         override
         nonReentrant
+        whenNotPaused
         onlyActive
         returns (uint256 positionId)
     {
@@ -297,7 +300,7 @@ contract CDSPool is ICDSPool, ReentrancyGuard {
 
     /// @notice Accrue outstanding premiums from all active positions into pool assets
     /// @dev Called automatically before state-changing operations. Anyone can call manually.
-    function accrueAllPremiums() external override {
+    function accrueAllPremiums() external override whenNotPaused {
         _accruePremiums();
     }
 
@@ -402,6 +405,7 @@ contract CDSPool is ICDSPool, ReentrancyGuard {
     function buyProtectionFor(uint256 notional, uint256 maxPremium, address beneficiary)
         external
         nonReentrant
+        whenNotPaused
         onlyActive
         returns (uint256 positionId)
     {
@@ -535,6 +539,18 @@ contract CDSPool is ICDSPool, ReentrancyGuard {
         uint256 oldFeeBps = protocolFeeBps;
         protocolFeeBps = newFeeBps;
         emit ProtocolFeeUpdated(oldFeeBps, newFeeBps);
+    }
+
+    // --- Pausable ---
+
+    function pause() external {
+        require(msg.sender == protocolAdmin, "CDSPool: not protocol admin");
+        _pause();
+    }
+
+    function unpause() external {
+        require(msg.sender == protocolAdmin, "CDSPool: not protocol admin");
+        _unpause();
     }
 
     // ========== Internal ==========

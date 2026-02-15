@@ -60,7 +60,7 @@ contract StrategyRouterTest is Test {
         forgeVault = ForgeVault(fv);
 
         // Create YieldVaults
-        yvFactory = new YieldVaultFactory();
+        yvFactory = new YieldVaultFactory(address(this));
         yvSenior = YieldVault(yvFactory.createYieldVault(fv, 0, "acSR", "acSR", DAY));
         yvMezz = YieldVault(yvFactory.createYieldVault(fv, 1, "acMZ", "acMZ", DAY));
         yvEquity = YieldVault(yvFactory.createYieldVault(fv, 2, "acEQ", "acEQ", DAY));

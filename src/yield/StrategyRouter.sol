@@ -4,6 +4,7 @@ pragma solidity 0.8.27;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {MeridianMath} from "../libraries/MeridianMath.sol";
 
@@ -18,7 +19,7 @@ import {MeridianMath} from "../libraries/MeridianMath.sol";
 ///      - "Conservative": 80% Senior YieldVault + 20% Mezzanine YieldVault
 ///      - "Balanced":     50% Senior + 30% Mezz + 20% Equity
 ///      - "Aggressive":   30% Mezz + 70% Equity YieldVault
-contract StrategyRouter is ReentrancyGuard {
+contract StrategyRouter is ReentrancyGuard, Pausable {
     using SafeERC20 for IERC20;
 
     // --- Structs ---
@@ -101,6 +102,7 @@ contract StrategyRouter is ReentrancyGuard {
     function openPosition(uint256 strategyId, uint256 amount)
         external
         nonReentrant
+        whenNotPaused
         returns (uint256 positionId)
     {
         Strategy storage strat = _strategies[strategyId];
@@ -168,7 +170,7 @@ contract StrategyRouter is ReentrancyGuard {
     }
 
     /// @notice Rebalance a position to a different strategy
-    function rebalance(uint256 positionId, uint256 newStrategyId) external nonReentrant {
+    function rebalance(uint256 positionId, uint256 newStrategyId) external nonReentrant whenNotPaused {
         PositionInfo storage info = _positionInfo[positionId];
         require(info.user == msg.sender, "StrategyRouter: not owner");
 
@@ -244,5 +246,15 @@ contract StrategyRouter is ReentrancyGuard {
 
     function getUserPositions(address user) external view returns (uint256[] memory) {
         return _userPositions[user];
+    }
+
+    // --- Pausable ---
+
+    function pause() external onlyGovernance {
+        _pause();
+    }
+
+    function unpause() external onlyGovernance {
+        _unpause();
     }
 }

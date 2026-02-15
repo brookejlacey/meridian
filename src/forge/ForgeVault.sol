@@ -4,6 +4,7 @@ pragma solidity 0.8.27;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {IForgeVault} from "../interfaces/IForgeVault.sol";
 import {ITrancheToken} from "../interfaces/ITrancheToken.sol";
 import {WaterfallDistributor} from "../libraries/WaterfallDistributor.sol";
@@ -21,7 +22,7 @@ import {MeridianMath} from "../libraries/MeridianMath.sol";
 ///      - Users call claimYield() to pull their share
 ///
 ///      Convention: tranche indices are 0=Senior, 1=Mezzanine, 2=Equity
-contract ForgeVault is IForgeVault, ReentrancyGuard {
+contract ForgeVault is IForgeVault, ReentrancyGuard, Pausable {
     using SafeERC20 for IERC20;
     using MeridianMath for uint256;
 
@@ -149,6 +150,7 @@ contract ForgeVault is IForgeVault, ReentrancyGuard {
         external
         override
         nonReentrant
+        whenNotPaused
         onlyActive
         validTranche(trancheId)
     {
@@ -180,6 +182,7 @@ contract ForgeVault is IForgeVault, ReentrancyGuard {
         external
         override
         nonReentrant
+        whenNotPaused
         onlyActive
         validTranche(trancheId)
     {
@@ -258,7 +261,7 @@ contract ForgeVault is IForgeVault, ReentrancyGuard {
 
     /// @notice Trigger waterfall distribution of available yield
     /// @dev Anyone can call this (public crank). Respects distributionInterval.
-    function triggerWaterfall() external override nonReentrant onlyActive {
+    function triggerWaterfall() external override nonReentrant whenNotPaused onlyActive {
         require(
             block.timestamp >= lastDistribution + distributionInterval,
             "ForgeVault: too soon"
@@ -381,6 +384,18 @@ contract ForgeVault is IForgeVault, ReentrancyGuard {
         uint256 oldFeeBps = protocolFeeBps;
         protocolFeeBps = newFeeBps;
         emit ProtocolFeeUpdated(oldFeeBps, newFeeBps);
+    }
+
+    // --- Pausable ---
+
+    function pause() external {
+        require(msg.sender == protocolAdmin, "ForgeVault: not protocol admin");
+        _pause();
+    }
+
+    function unpause() external {
+        require(msg.sender == protocolAdmin, "ForgeVault: not protocol admin");
+        _unpause();
     }
 
     // --- Transfer Hook (called by TrancheToken) ---

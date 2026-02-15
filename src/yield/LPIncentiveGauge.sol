@@ -4,6 +4,7 @@ pragma solidity 0.8.27;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {CDSPool} from "../shield/CDSPool.sol";
 import {MeridianMath} from "../libraries/MeridianMath.sol";
 
@@ -22,7 +23,7 @@ import {MeridianMath} from "../libraries/MeridianMath.sol";
 ///      1. Governance calls notifyRewardAmount(reward, duration) to fund the gauge
 ///      2. LPs accrue rewards proportional to their pool shares over time
 ///      3. LPs call claimReward() to collect accrued rewards
-contract LPIncentiveGauge is ReentrancyGuard {
+contract LPIncentiveGauge is ReentrancyGuard, Pausable {
     using SafeERC20 for IERC20;
 
     CDSPool public immutable POOL;
@@ -74,6 +75,7 @@ contract LPIncentiveGauge is ReentrancyGuard {
     function notifyRewardAmount(uint256 reward, uint256 duration)
         external
         onlyGovernance
+        whenNotPaused
         updateReward(address(0))
     {
         require(reward > 0, "LPIncentiveGauge: zero reward");
@@ -141,5 +143,15 @@ contract LPIncentiveGauge is ReentrancyGuard {
         uint256 shares = POOL.sharesOf(account);
         uint256 delta = rewardPerShare() - userRewardPerSharePaid[account];
         return rewards[account] + MeridianMath.wadMul(shares, delta);
+    }
+
+    // --- Pausable ---
+
+    function pause() external onlyGovernance {
+        _pause();
+    }
+
+    function unpause() external onlyGovernance {
+        _unpause();
     }
 }

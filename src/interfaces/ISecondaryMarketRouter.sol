@@ -48,4 +48,8 @@ interface ISecondaryMarketRouter {
     function swapAndReinvest(SwapAndReinvestParams calldata params) external returns (uint256 invested);
     function swapAndHedge(SwapAndHedgeParams calldata params) external returns (uint256 invested);
     function quoteSwap(address tokenIn, address tokenOut, uint256 amountIn) external view returns (uint256 amountOut);
+
+    // --- Pausable ---
+    function pause() external;
+    function unpause() external;
 }

@@ -4,6 +4,7 @@ pragma solidity 0.8.27;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {IForgeVault} from "./interfaces/IForgeVault.sol";
 import {IFlashBorrower, MockFlashLender} from "./mocks/MockFlashLender.sol";
 
@@ -20,10 +21,11 @@ import {IFlashBorrower, MockFlashLender} from "./mocks/MockFlashLender.sol";
 ///      3. Withdraw 100k from Senior tranche (burns senior tokens, gets underlying back)
 ///      4. Repay flash loan
 ///      Result: Alice atomically moved from Senior → Equity
-contract FlashRebalancer is IFlashBorrower, ReentrancyGuard {
+contract FlashRebalancer is IFlashBorrower, ReentrancyGuard, Pausable {
     using SafeERC20 for IERC20;
 
     MockFlashLender public immutable FLASH_LENDER;
+    address public immutable pauseAdmin;
 
     // Transient state for flash loan callback
     struct RebalanceParams {
@@ -44,9 +46,11 @@ contract FlashRebalancer is IFlashBorrower, ReentrancyGuard {
         uint256 amount
     );
 
-    constructor(address flashLender_) {
+    constructor(address flashLender_, address pauseAdmin_) {
         require(flashLender_ != address(0), "FlashRebalancer: zero lender");
+        require(pauseAdmin_ != address(0), "FlashRebalancer: zero pause admin");
         FLASH_LENDER = MockFlashLender(flashLender_);
+        pauseAdmin = pauseAdmin_;
     }
 
     /// @notice Rebalance a position from one tranche to another atomically
@@ -62,7 +66,7 @@ contract FlashRebalancer is IFlashBorrower, ReentrancyGuard {
         uint8 fromTranche,
         uint8 toTranche,
         uint256 amount
-    ) external nonReentrant {
+    ) external nonReentrant whenNotPaused {
         require(vault != address(0), "FlashRebalancer: zero vault");
         require(fromTranche != toTranche, "FlashRebalancer: same tranche");
         require(amount > 0, "FlashRebalancer: zero amount");
@@ -130,5 +134,17 @@ contract FlashRebalancer is IFlashBorrower, ReentrancyGuard {
         delete _pending;
 
         emit Rebalanced(p.user, p.vault, p.fromTranche, p.toTranche, amount);
+    }
+
+    // --- Pausable ---
+
+    function pause() external {
+        require(msg.sender == pauseAdmin, "FlashRebalancer: not pause admin");
+        _pause();
+    }
+
+    function unpause() external {
+        require(msg.sender == pauseAdmin, "FlashRebalancer: not pause admin");
+        _unpause();
     }
 }
