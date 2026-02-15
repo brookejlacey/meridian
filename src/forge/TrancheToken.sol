@@ -14,6 +14,10 @@ import {ITrancheToken} from "../interfaces/ITrancheToken.sol";
 ///      - Transfers call ForgeVault.onShareTransfer() to keep plaintext mirrors in sync
 ///      - The hook MUST settle yield for both parties before updating shares
 contract TrancheToken is ERC20, ITrancheToken {
+    /// @dev Precomputed selector for onShareTransfer(address,address,uint256)
+    bytes4 private constant ON_SHARE_TRANSFER_SELECTOR =
+        bytes4(keccak256("onShareTransfer(address,address,uint256)"));
+
     address public override vault;
     uint8 public override trancheId;
 
@@ -57,7 +61,7 @@ contract TrancheToken is ERC20, ITrancheToken {
         if (from != address(0) && to != address(0)) {
             // Call vault to sync plaintext mirrors
             (bool success,) = vault.call(
-                abi.encodeWithSignature("onShareTransfer(address,address,uint256)", from, to, amount)
+                abi.encodeWithSelector(ON_SHARE_TRANSFER_SELECTOR, from, to, amount)
             );
             require(success, "TrancheToken: hook failed");
             emit ShareTransferHook(from, to, amount);

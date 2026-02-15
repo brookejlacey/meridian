@@ -152,9 +152,9 @@ contract PremiumEngineTest is Test {
         });
 
         uint256 remaining = PremiumEngine.remainingPremium(state, 1000 + YEAR / 2);
-        // Remaining: half year = 182 days
-        // 1M * 200 * 182 / (10000 * 365) = ~9,972
-        assertApproxEqRel(remaining, 9_972e18, 1e14);
+        // Remaining: half year in seconds (now seconds-precise, no day truncation)
+        // 1M * 200 * (YEAR/2) / (10000 * YEAR) = 10,000
+        assertApproxEqRel(remaining, 10_000e18, 1e14);
     }
 
     function test_remainingPremium_pastMaturity() public pure {

@@ -38,6 +38,7 @@ contract CreditEventOracle is ICreditEventOracle, Ownable {
 
     // --- Events ---
     event ReporterUpdated(address indexed reporter, bool authorized);
+    event CreditEventCleared(address indexed vault);
 
     // --- Modifiers ---
     modifier onlyReporter() {
@@ -163,5 +164,6 @@ contract CreditEventOracle is ICreditEventOracle, Ownable {
     /// @notice Clear active event for a vault (after resolution)
     function clearEvent(address vault) external onlyOwner {
         hasActiveEvent[vault] = false;
+        emit CreditEventCleared(vault);
     }
 }

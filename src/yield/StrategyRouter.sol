@@ -161,6 +161,9 @@ contract StrategyRouter is ReentrancyGuard {
 
         IERC20(underlying).safeTransfer(msg.sender, totalOut);
 
+        // Clear position info to prevent stale references
+        delete _positionInfo[positionId];
+
         emit PositionClosed(positionId, msg.sender, totalOut);
     }
 

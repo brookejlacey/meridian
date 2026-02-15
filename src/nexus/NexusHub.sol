@@ -240,6 +240,7 @@ contract NexusHub is INexusHub, ReentrancyGuard, Ownable {
     /// @notice Update liquidation parameters
     function setLiquidationParams(uint256 threshold_, uint256 penaltyBps_) external onlyOwner {
         require(threshold_ >= MeridianMath.WAD, "NexusHub: threshold < 100%");
+        require(penaltyBps_ <= 5000, "NexusHub: penalty > 50%");
         liquidationThreshold = threshold_;
         liquidationPenaltyBps = penaltyBps_;
     }

@@ -40,6 +40,12 @@ contract ShieldFactory {
     /// @param params CDS creation parameters
     /// @return cdsAddress The deployed CDSContract address
     function createCDS(CreateCDSParams calldata params) external returns (address cdsAddress) {
+        require(params.protectionAmount > 0, "ShieldFactory: zero notional");
+        require(params.premiumRate > 0 && params.premiumRate <= 10_000, "ShieldFactory: invalid premium rate");
+        require(params.maturity > block.timestamp, "ShieldFactory: maturity in past");
+        require(params.maturity <= block.timestamp + 10 * 365 days, "ShieldFactory: maturity too far");
+        require(params.paymentInterval > 0, "ShieldFactory: zero interval");
+
         uint256 cdsId = cdsCount++;
 
         ICDSContract.CDSTerms memory terms = ICDSContract.CDSTerms({

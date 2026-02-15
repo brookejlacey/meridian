@@ -59,6 +59,14 @@ contract CDSPoolFactory is Ownable {
     /// @param params Pool creation parameters
     /// @return poolAddress The deployed CDSPool address
     function createPool(CreatePoolParams calldata params) external returns (address poolAddress) {
+        require(params.referenceAsset != address(0), "CDSPoolFactory: zero ref asset");
+        require(params.collateralToken != address(0), "CDSPoolFactory: zero collateral");
+        require(params.oracle != address(0), "CDSPoolFactory: zero oracle");
+        require(params.maturity > block.timestamp, "CDSPoolFactory: maturity in past");
+        require(params.maturity <= block.timestamp + 10 * 365 days, "CDSPoolFactory: maturity too far");
+        require(params.baseSpreadWad > 0, "CDSPoolFactory: zero base spread");
+        require(params.slopeWad > 0, "CDSPoolFactory: zero slope");
+
         uint256 poolId = poolCount++;
 
         ICDSPool.PoolTerms memory poolTerms = ICDSPool.PoolTerms({

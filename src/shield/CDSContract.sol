@@ -183,6 +183,7 @@ contract CDSContract is ICDSContract, ReentrancyGuard {
         require(seller == address(0), "CDSContract: seller already set");
         require(collateralAmount >= terms.protectionAmount, "CDSContract: insufficient collateral");
         require(status == CDSStatus.Active, "CDSContract: not active");
+        require(block.timestamp < terms.maturity, "CDSContract: matured");
 
         collateralToken.safeTransferFrom(msg.sender, address(this), collateralAmount);
         seller = msg.sender;

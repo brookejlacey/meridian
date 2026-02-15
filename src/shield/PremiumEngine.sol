@@ -98,14 +98,14 @@ library PremiumEngine {
     /// @notice Calculate remaining premium from current time to maturity
     /// @param state Current premium state
     /// @param currentTime Current timestamp
-    /// @return remaining Premium still owed
+    /// @return remaining Premium still owed (seconds-precise, no day truncation)
     function remainingPremium(
         PremiumState memory state,
         uint256 currentTime
     ) internal pure returns (uint256 remaining) {
         if (currentTime >= state.maturity) return 0;
-        uint256 remainingDays = (state.maturity - currentTime) / 1 days;
-        uint256 total = calculateTotalPremium(state.notional, state.annualSpreadBps, remainingDays);
-        return total;
+        uint256 remainingSeconds = state.maturity - currentTime;
+        // premium = notional * spreadBps / BPS * remainingSeconds / YEAR
+        remaining = (state.notional * state.annualSpreadBps * remainingSeconds) / (MeridianMath.BPS * YEAR);
     }
 }

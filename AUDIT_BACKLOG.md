@@ -54,11 +54,11 @@
 
 ### LOW (8 findings)
 
-- [ ] L-01: PremiumEngine `remainingPremium` truncates partial days
-- [ ] L-02: ShieldFactory/CDSPoolFactory no economic bounds on creation params
-- [ ] L-03: CreditEventOracle `clearEvent` emits no event
-- [ ] L-04: CDSContract allows selling protection after maturity
-- [ ] L-05: StrategyRouter no closed position cleanup
-- [ ] L-06: NexusHub `setLiquidationParams` no upper bound on penalty
-- [ ] L-07: TrancheToken runtime signature computation (fragile)
-- [ ] L-08: IWaterfallDistributor dead code with mismatched structs
+- [x] L-01: PremiumEngine `remainingPremium` truncates partial days — switched to seconds-precise math
+- [x] L-02: ShieldFactory/CDSPoolFactory no economic bounds — added param validation (notional, rate caps, maturity bounds)
+- [x] L-03: CreditEventOracle `clearEvent` emits no event — added `CreditEventCleared` event
+- [x] L-04: CDSContract allows selling protection after maturity — added maturity check in `sellProtection`
+- [x] L-05: StrategyRouter no closed position cleanup — `delete _positionInfo[positionId]` on close
+- [x] L-06: NexusHub `setLiquidationParams` no upper bound on penalty — capped at 5000 bps (50%)
+- [x] L-07: TrancheToken runtime signature computation — precomputed `ON_SHARE_TRANSFER_SELECTOR` constant
+- [x] L-08: IWaterfallDistributor dead code with mismatched structs — fixed field names to match library
