@@ -8,6 +8,7 @@ const tabs = [
   { name: "Shield", href: "/shield", description: "Credit Default Swaps" },
   { name: "Pools", href: "/pools", description: "CDS AMM" },
   { name: "Nexus", href: "/nexus", description: "Cross-Chain Margin" },
+  { name: "Trade", href: "/trade", description: "Secondary Market" },
   { name: "Strategies", href: "/strategies", description: "Yield Optimizer" },
   { name: "Analytics", href: "/analytics", description: "Risk Dashboard" },
 ];

@@ -23,4 +23,5 @@ interface INexusHub {
     function getTotalCollateralValue(address user) external view returns (uint256);
     function getLocalCollateralValue(address user) external view returns (uint256);
     function getUserAssets(address user) external view returns (address[] memory);
+    function setInsurancePool(address pool_) external;
 }

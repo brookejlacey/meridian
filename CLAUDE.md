@@ -14,6 +14,8 @@ Meridian is an onchain institutional credit protocol on Avalanche with three lay
 - **YieldVault**: ERC4626 auto-compounding wrapper for ForgeVault tranches with keeper-callable `compound()`
 - **StrategyRouter**: Multi-vault yield optimizer with governance-defined BPS allocation strategies
 - **LPIncentiveGauge**: Synthetix StakingRewards-style liquidity mining for CDSPool LPs
+- **SecondaryMarketRouter**: DEX-composable router for tranche token trading (swap, swap+reinvest, swap+hedge)
+- **InsurancePool**: Backstop for NexusHub liquidation shortfalls (deposit/withdraw reserves, auto-cover)
 
 All contracts are Solidity 0.8.27, tested with Foundry, deployed on Avalanche Fuji testnet.
 
@@ -21,7 +23,7 @@ All contracts are Solidity 0.8.27, tested with Foundry, deployed on Avalanche Fu
 
 ```bash
 forge build                              # Compile all contracts
-forge test                               # Run all 378 tests (includes 10k-run fuzz + invariants)
+forge test                               # Run all 443 tests (includes 10k-run fuzz + invariants)
 forge test --match-contract <Name> -vv   # Run specific test suite with verbosity
 cd frontend && npm run build             # Build Next.js frontend
 cd indexer && pnpm dev                   # Start Ponder indexer (localhost:42069)
@@ -88,13 +90,14 @@ See README.md for full table. Key addresses:
 | Shield core | `src/shield/CDSContract.sol`, `src/shield/ShieldFactory.sol` |
 | CDS AMM | `src/shield/CDSPool.sol`, `src/shield/CDSPoolFactory.sol`, `src/libraries/BondingCurve.sol` |
 | Nexus core | `src/nexus/NexusHub.sol`, `src/nexus/NexusVault.sol` |
-| Routers | `src/HedgeRouter.sol`, `src/PoolRouter.sol`, `src/FlashRebalancer.sol` |
+| Routers | `src/HedgeRouter.sol`, `src/PoolRouter.sol`, `src/FlashRebalancer.sol`, `src/SecondaryMarketRouter.sol` |
 | Keeper | `src/LiquidationBot.sol` |
+| Insurance | `src/nexus/InsurancePool.sol` |
 | Yield | `src/yield/YieldVault.sol`, `src/yield/YieldVaultFactory.sol`, `src/yield/StrategyRouter.sol`, `src/yield/LPIncentiveGauge.sol` |
 | Math | `src/libraries/MeridianMath.sol`, `src/libraries/WaterfallDistributor.sol` |
 | Tests | `test/forge/`, `test/shield/`, `test/nexus/`, `test/yield/`, `test/invariants/`, `test/*.t.sol` |
 | Deploy | `script/DeployFuji.s.sol`, `script/DeployPhase5.s.sol`, `script/DeployHedgeRouter.s.sol` |
 | Demo | `script/Demo.s.sol` (12-step end-to-end protocol walkthrough) |
-| Frontend | `frontend/src/app/` (pages incl. `/strategies`, `/analytics`), `frontend/src/hooks/` (wagmi hooks) |
+| Frontend | `frontend/src/app/` (pages incl. `/strategies`, `/analytics`, `/trade`), `frontend/src/hooks/` (wagmi hooks) |
 | Indexer | `indexer/src/` (handlers), `indexer/ponder.config.ts`, `indexer/ponder.schema.ts` |
 | Backlog | `backlog.md` |

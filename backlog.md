@@ -110,9 +110,9 @@ ElGamal (eERC) supports ONLY additive homomorphism. Cannot do: multiplication of
 
 ---
 
-## Current Status (as of 2026-02-11)
+## Current Status (as of 2026-02-14)
 
-**378 tests passing** across all suites (10k-run fuzz + invariant tests). Full protocol deployed to Avalanche Fuji. Gas optimization complete (911k gas saved). 12-step E2E demo script runs successfully.
+**443 tests passing** across all suites (10k-run fuzz + invariant tests). Full protocol deployed to Avalanche Fuji. Gas optimization complete (911k gas saved). 12-step E2E demo script runs successfully. Security audit complete (49 findings, 48 fixed). All high/medium priority backlog items complete.
 
 | Layer | Status | Tests | Deployed |
 |-------|--------|-------|----------|
@@ -278,14 +278,19 @@ ElGamal (eERC) supports ONLY additive homomorphism. Cannot do: multiplication of
 - ~~Yield vault strategies~~ **DONE** — YieldVault (ERC4626 auto-compounder), YieldVaultFactory, StrategyRouter (multi-vault optimizer), LPIncentiveGauge (CDSPool LP mining), frontend /strategies page
 - ~~Gas optimization pass~~ **DONE** — unchecked blocks in MeridianMath, BondingCurve, WaterfallDistributor, MarginAccount, ForgeVault, CDSPool loops. 911,671 gas saved.
 - ~~Deploy scripts~~ **DONE** — DeployPhase5.s.sol covers CDSPoolFactory, PoolRouter, FlashRebalancer, LiquidationBot, YieldVaultFactory, StrategyRouter, LPIncentiveGauge
+- ~~Security audit (49 findings)~~ **DONE** — 48 fixed (5 critical, 16 high, 20 medium, 8 low), 1 accepted for MVP
+- ~~Security audit prep~~ **DONE** — Solhint + Slither CI/CD integration
+- ~~Dynamic tranche ratios~~ **DONE** — ForgeVault.adjustTrancheRatios() with bounds validation + 18 tests
+- ~~Liquidation insurance pool~~ **DONE** — InsurancePool backstop for NexusHub + 30 tests
+- ~~Secondary market router~~ **DONE** — SecondaryMarketRouter + MockDEXRouter + frontend /trade page + 17 tests
 
-### High Priority (next up)
-- 9. **Secondary market for tranche tokens** — DEX integration (Uniswap V3 on Fuji or TraderJoe). Enables real price discovery.
-- 12. **Security audit prep** — Slither/Mythril static analysis, review access controls, documentation.
+### High Priority — COMPLETE
+- ~~9. Secondary market for tranche tokens~~ **DONE** — SecondaryMarketRouter (swap, swapAndReinvest, swapAndHedge) + MockDEXRouter + frontend /trade page + 17 tests
+- ~~12. Security audit prep~~ **DONE** — .solhint.json + slither.config.json + CI/CD Solhint + Slither jobs. 49/49 audit findings resolved.
 
-### Medium Priority (protocol maturity)
-- 6. **Liquidation insurance pool** — backstop for slow liquidations in Nexus margin engine.
-- 10. **Dynamic tranche ratios** — auto-adjust senior/mezz/equity based on pool health metrics.
+### Medium Priority — COMPLETE
+- ~~6. Liquidation insurance pool~~ **DONE** — InsurancePool (deposit/withdraw/coverShortfall/collectPremium) + NexusHub integration + 30 tests
+- ~~10. Dynamic tranche ratios~~ **DONE** — ForgeVault.adjustTrancheRatios() with bounds validation (senior 50-85%, mezz 10-35%, equity 5-20%) + 18 tests
 
 ### Lower Priority (v2 features)
 - 4. Credit scoring oracle (originator reputation → pricing)

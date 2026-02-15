@@ -31,6 +31,14 @@ contract ForgeVault is IForgeVault, ReentrancyGuard {
     uint8 public constant MEZZANINE = 1;
     uint8 public constant EQUITY = 2;
 
+    // --- Dynamic Tranche Ratio Bounds ---
+    uint256 public constant MIN_SENIOR_PCT = 50;
+    uint256 public constant MAX_SENIOR_PCT = 85;
+    uint256 public constant MIN_MEZZ_PCT = 10;
+    uint256 public constant MAX_MEZZ_PCT = 35;
+    uint256 public constant MIN_EQUITY_PCT = 5;
+    uint256 public constant MAX_EQUITY_PCT = 20;
+
     // --- Immutables ---
     address public override originator;
     IERC20 public underlyingAsset;
@@ -304,6 +312,35 @@ contract ForgeVault is IForgeVault, ReentrancyGuard {
         );
         poolStatus = newStatus;
         emit PoolStatusChanged(oldStatus, newStatus);
+    }
+
+    /// @notice Adjust tranche allocation percentages for future investments
+    /// @dev Only originator can call. Only affects guidance for NEW investments, not existing positions.
+    ///      Bounds: Senior 50-85%, Mezzanine 10-35%, Equity 5-20%. Must sum to 100.
+    /// @param newPcts Array of 3 percentages [senior, mezz, equity]
+    function adjustTrancheRatios(uint256[3] calldata newPcts) external onlyOriginator onlyActive {
+        require(newPcts[0] + newPcts[1] + newPcts[2] == 100, "ForgeVault: must sum to 100");
+        require(
+            newPcts[0] >= MIN_SENIOR_PCT && newPcts[0] <= MAX_SENIOR_PCT,
+            "ForgeVault: senior out of bounds"
+        );
+        require(
+            newPcts[1] >= MIN_MEZZ_PCT && newPcts[1] <= MAX_MEZZ_PCT,
+            "ForgeVault: mezz out of bounds"
+        );
+        require(
+            newPcts[2] >= MIN_EQUITY_PCT && newPcts[2] <= MAX_EQUITY_PCT,
+            "ForgeVault: equity out of bounds"
+        );
+
+        uint256[3] memory oldPcts;
+        for (uint8 i = 0; i < NUM_TRANCHES;) {
+            oldPcts[i] = trancheParamsArray[i].allocationPct;
+            trancheParamsArray[i].allocationPct = newPcts[i];
+            unchecked { ++i; }
+        }
+
+        emit TrancheRatiosAdjusted(oldPcts, newPcts);
     }
 
     // --- Transfer Hook (called by TrancheToken) ---

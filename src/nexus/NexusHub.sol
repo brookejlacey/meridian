@@ -9,6 +9,7 @@ import {INexusHub} from "../interfaces/INexusHub.sol";
 import {CollateralOracle} from "./CollateralOracle.sol";
 import {MarginAccount} from "../libraries/MarginAccount.sol";
 import {MeridianMath} from "../libraries/MeridianMath.sol";
+import {IInsurancePool} from "../interfaces/IInsurancePool.sol";
 
 /// @title NexusHub
 /// @notice Central margin engine on C-Chain. Tracks multi-asset collateral positions,
@@ -81,6 +82,9 @@ contract NexusHub is INexusHub, ReentrancyGuard, Ownable {
 
     /// @notice Processed message hashes for replay protection
     mapping(bytes32 => bool) public processedMessages;
+
+    /// @notice Insurance pool for covering liquidation shortfalls
+    address public insurancePool;
 
     // --- Events ---
     event CollateralWithdrawn(address indexed user, address indexed asset, uint256 amount);
@@ -164,11 +168,19 @@ contract NexusHub is INexusHub, ReentrancyGuard, Ownable {
         require(hasAccount[user], "NexusHub: no account");
         require(!_isHealthy(user), "NexusHub: account is healthy");
 
+        uint256 userObligation = obligations[user];
+
         // Seize collateral and transfer to liquidator
         uint256 totalSeized = _seizeCollateral(user, msg.sender);
 
-        // Clear obligations (position closed)
-        obligations[user] = 0;
+        // If seized collateral < obligations, attempt insurance coverage
+        if (totalSeized < userObligation && insurancePool != address(0)) {
+            uint256 shortfall = userObligation - totalSeized;
+            uint256 covered = IInsurancePool(insurancePool).coverShortfall(user, shortfall);
+            obligations[user] = shortfall - covered;
+        } else {
+            obligations[user] = 0;
+        }
 
         // Clear cross-chain attestations
         bytes32[] memory chains = _userChains[user];
@@ -243,6 +255,11 @@ contract NexusHub is INexusHub, ReentrancyGuard, Ownable {
         require(penaltyBps_ <= 5000, "NexusHub: penalty > 50%");
         liquidationThreshold = threshold_;
         liquidationPenaltyBps = penaltyBps_;
+    }
+
+    /// @notice Set the insurance pool for covering liquidation shortfalls
+    function setInsurancePool(address pool_) external onlyOwner {
+        insurancePool = pool_;
     }
 
     // --- View Functions ---
@@ -362,6 +379,11 @@ contract NexusHub is INexusHub, ReentrancyGuard, Ownable {
             obligations[user] = 0;
         } else {
             obligations[user] -= proceeds;
+            // Attempt to cover remaining shortfall via insurance pool
+            if (insurancePool != address(0) && obligations[user] > 0) {
+                uint256 covered = IInsurancePool(insurancePool).coverShortfall(user, obligations[user]);
+                obligations[user] -= covered;
+            }
         }
     }
 }

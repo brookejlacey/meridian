@@ -44,6 +44,61 @@ jobs:
           name: gas-snapshot
           path: .gas-snapshot
 
+  solhint:
+    name: Solhint Linting
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          submodules: recursive
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Solhint
+        run: npm install -g solhint
+
+      - name: Run Solhint
+        run: solhint 'src/**/*.sol'
+
+  slither:
+    name: Slither Static Analysis
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Build
+        run: forge build
+
+      - name: Run Slither
+        uses: crytic/slither-action@v0.4.0
+        id: slither
+        continue-on-error: true
+        with:
+          sarif: results.sarif
+          fail-on: high
+          slither-config: slither.config.json
+
+      - name: Upload SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: results.sarif
+
   frontend:
     name: Frontend (Build + Typecheck)
     runs-on: ubuntu-latest
