@@ -140,6 +140,10 @@ contract LiquidationBotTest is Test {
         // settlePool now requires factory owner (this test contract is the factory deployer)
         bot.settlePool(0, 0.5e18); // pool ID 0, 50% recovery
 
+        // Pull-based settlement: bob must claim
+        vm.prank(bob);
+        pool.claimSettlement();
+
         uint256 bobPayout = usdc.balanceOf(bob) - bobBefore;
         assertApproxEqRel(bobPayout, 250_000e18, 1e15, "50% loss on 500k");
         assertEq(uint256(pool.getPoolStatus()), uint256(ICDSPool.PoolStatus.Settled));

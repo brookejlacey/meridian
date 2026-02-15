@@ -56,6 +56,9 @@ contract NexusVault is INexusVault, ReentrancyGuard, Ownable {
     /// @notice Whether a user's collateral is locked (active cross-chain position)
     mapping(address user => bool) public withdrawalLocked;
 
+    /// @notice Processed message hashes for replay protection
+    mapping(bytes32 => bool) public processedMessages;
+
     // --- Events ---
     event AttestationSent(address indexed user, uint256 totalValue);
 
@@ -199,6 +202,11 @@ contract NexusVault is INexusVault, ReentrancyGuard, Ownable {
         require(msg.sender == teleporter, "NexusVault: not teleporter");
         require(sourceChainId == hubChainId, "NexusVault: wrong source chain");
         require(sender == hubAddress, "NexusVault: wrong sender");
+
+        // Replay protection
+        bytes32 msgHash = keccak256(abi.encodePacked(sourceChainId, sender, message));
+        require(!processedMessages[msgHash], "NexusVault: message already processed");
+        processedMessages[msgHash] = true;
 
         (uint8 msgType, address user) = abi.decode(message, (uint8, address));
 

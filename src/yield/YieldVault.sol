@@ -74,7 +74,6 @@ contract YieldVault is ERC4626, ReentrancyGuard {
     function _deposit(address caller, address receiver, uint256 assets, uint256 shares)
         internal
         override
-        nonReentrant
     {
         require(
             FORGE_VAULT.poolStatus() == IForgeVault.PoolStatus.Active,
@@ -101,7 +100,7 @@ contract YieldVault is ERC4626, ReentrancyGuard {
         address owner,
         uint256 assets,
         uint256 shares
-    ) internal override nonReentrant {
+    ) internal override {
         if (caller != owner) {
             _spendAllowance(owner, caller, shares);
         }
@@ -121,6 +120,24 @@ contract YieldVault is ERC4626, ReentrancyGuard {
         SafeERC20.safeTransfer(IERC20(asset()), receiver, assets);
 
         emit Withdraw(caller, receiver, owner, assets, shares);
+    }
+
+    // --- ERC4626 Public Entry Points (nonReentrant at public boundary) ---
+
+    function deposit(uint256 assets, address receiver) public override nonReentrant returns (uint256) {
+        return super.deposit(assets, receiver);
+    }
+
+    function mint(uint256 shares, address receiver) public override nonReentrant returns (uint256) {
+        return super.mint(shares, receiver);
+    }
+
+    function withdraw(uint256 assets, address receiver, address owner_) public override nonReentrant returns (uint256) {
+        return super.withdraw(assets, receiver, owner_);
+    }
+
+    function redeem(uint256 shares, address receiver, address owner_) public override nonReentrant returns (uint256) {
+        return super.redeem(shares, receiver, owner_);
     }
 
     // --- Compounding ---

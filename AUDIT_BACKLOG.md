@@ -32,25 +32,25 @@
 ### MEDIUM (20 findings)
 
 - [x] M-01: ForgeVault `setPoolStatus` no transition constraints — added state machine validation
-- [ ] M-02: CDSPool unbounded loops in `_accruePremiums`/`settle()` — gas DoS
-- [ ] M-03: CDSPool withdrawal accounting incorrect (deposit/premium split)
-- [ ] M-04: CDSPool `settle()` push-based transfers — griefing by malicious buyer contracts
-- [ ] M-05: ShieldPricer no `transferOwnership` — frozen if key lost
+- [x] M-02: CDSPool unbounded loops in `_accruePremiums`/`settle()` — added MAX_ACTIVE_POSITIONS (200) cap
+- [x] M-03: CDSPool withdrawal accounting incorrect (deposit/premium split) — proportional math based on pool composition
+- [x] M-04: CDSPool `settle()` push-based transfers — converted to pull-based `claimSettlement()` pattern
+- [x] M-05: ShieldPricer no `transferOwnership` — added `transferOwnership(address)` function
 - [x] M-06: CollateralOracle triple multiply DoS — split into wadMul + bpsMul
 - [x] M-07: HedgeRouter leaves residual token approvals — added approve(0) after calls
 - [x] M-08: YieldVault `emergencyWithdraw` phantom `totalInvested` — clear before try/catch
 - [x] M-09: StrategyRouter BPS rounding dust — last vault gets remainder
 - [x] M-10: NexusHub unbounded `_userAssets` array — added MAX_ASSETS_PER_ACCOUNT (20)
-- [ ] M-11: FlashRebalancer assumes 1:1 tranche token ratio
-- [ ] M-12: Teleporter message no replay protection
+- [x] M-11: FlashRebalancer assumes 1:1 tranche token ratio — added balance check after withdraw
+- [x] M-12: Teleporter message no replay protection — added `processedMessages` hash tracking in NexusHub + NexusVault
 - [x] M-13: LPIncentiveGauge `rewardRate` truncation — added min rewardRate check
-- [ ] M-14: YieldVault `nonReentrant` on internal hooks — composability issue
-- [ ] M-15: HedgeRouter `createAndHedge` creates CDS with no seller
-- [ ] M-16: ForgeFactory no tranche token binding validation
-- [ ] M-17: CDSPool front-running / MEV (sandwich attacks)
-- [ ] M-18: CDSPool LP self-dealing spread manipulation
+- [x] M-14: YieldVault `nonReentrant` on internal hooks — moved to public entry points (deposit/mint/withdraw/redeem)
+- [x] M-15: HedgeRouter `createAndHedge` creates CDS with no seller — added status check on investAndHedge, documented createAndHedge
+- [x] M-16: ForgeFactory no tranche token binding validation — added code.length > 0 check for all tokens + underlying
+- [x] M-17: CDSPool front-running / MEV (sandwich attacks) — LP cooldown prevents flash-deposit manipulation
+- [x] M-18: CDSPool LP self-dealing spread manipulation — added LP_COOLDOWN (1 hour) between deposit and withdraw
 - [x] M-19: Interface incompleteness — added missing functions to INexusHub, ICDSPool, ICreditEventOracle
-- [ ] M-20: NexusHub `_processLiquidationComplete` clears all obligations regardless of proceeds
+- [x] M-20: NexusHub `_processLiquidationComplete` clears all obligations regardless of proceeds — proportional reduction
 
 ### LOW (8 findings)
 

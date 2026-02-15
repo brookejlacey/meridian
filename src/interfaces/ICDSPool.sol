@@ -36,6 +36,7 @@ interface ICDSPool {
     event CreditEventTriggered(uint256 timestamp);
     event PoolSettled(uint256 totalPayout, uint256 recoveryRate);
     event PoolExpired(uint256 timestamp);
+    event SettlementClaimed(address indexed buyer, uint256 amount);
 
     // --- LP Functions ---
     function deposit(uint256 amount) external returns (uint256 shares);
@@ -50,6 +51,7 @@ interface ICDSPool {
     function accrueAllPremiums() external;
     function triggerCreditEvent() external;
     function settle(uint256 recoveryRateWad) external;
+    function claimSettlement() external returns (uint256 amount);
     function expire() external;
 
     // --- View ---

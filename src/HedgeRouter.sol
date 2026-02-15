@@ -46,7 +46,8 @@ contract HedgeRouter is IHedgeRouter, ReentrancyGuard {
         IForgeVault(p.vault).investFor(p.trancheId, p.investAmount, msg.sender);
         token.approve(p.vault, 0);
 
-        // Buy protection — user becomes CDS buyer
+        // Buy protection — user becomes CDS buyer (verify seller exists so protection is backed)
+        require(ICDSContract(p.cds).getStatus() == ICDSContract.CDSStatus.Active, "HedgeRouter: CDS not active");
         ICDSContract.CDSTerms memory cdsTerms = ICDSContract(p.cds).getTerms();
         token.approve(p.cds, p.maxPremium);
         ICDSContract(p.cds).buyProtectionFor(cdsTerms.protectionAmount, p.maxPremium, msg.sender);
@@ -62,6 +63,8 @@ contract HedgeRouter is IHedgeRouter, ReentrancyGuard {
     }
 
     /// @notice Invest + create new CDS + buy protection atomically
+    /// @dev Creates an unmatched CDS (no seller yet). Buyer's premium is escrowed and
+    ///      returned via expire() if no seller joins before maturity.
     /// @param p Parameters including CDS creation terms
     function createAndHedge(CreateAndHedgeParams calldata p) external override nonReentrant {
         require(p.vault != address(0), "HedgeRouter: zero vault");

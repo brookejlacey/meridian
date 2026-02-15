@@ -240,6 +240,9 @@ contract CDSPoolTest is Test {
         vm.prank(alice);
         pool.deposit(1_000_000e18);
 
+        // Warp past LP cooldown
+        vm.warp(block.timestamp + pool.LP_COOLDOWN() + 1);
+
         vm.prank(alice);
         uint256 amount = pool.withdraw(1_000_000e18);
         assertApproxEqRel(amount, 1_000_000e18, 1e15, "Full withdrawal");
@@ -250,6 +253,9 @@ contract CDSPoolTest is Test {
         vm.prank(alice);
         pool.deposit(1_000_000e18);
 
+        // Warp past LP cooldown
+        vm.warp(block.timestamp + pool.LP_COOLDOWN() + 1);
+
         vm.prank(alice);
         uint256 amount = pool.withdraw(500_000e18);
         assertApproxEqRel(amount, 500_000e18, 1e15, "Half withdrawal");
@@ -259,6 +265,9 @@ contract CDSPoolTest is Test {
     function test_withdraw_revert_undercollateralized() public {
         vm.prank(alice);
         pool.deposit(1_000_000e18);
+
+        // Warp past LP cooldown
+        vm.warp(block.timestamp + pool.LP_COOLDOWN() + 1);
 
         // Buy protection (using up some capacity)
         vm.prank(bob);
@@ -491,8 +500,12 @@ contract CDSPoolTest is Test {
 
         uint256 bobBefore = usdc.balanceOf(bob);
 
-        // Settle with 0% recovery (total loss)
+        // Settle with 0% recovery (total loss) — now pull-based
         pool.settle(0);
+
+        // Bob must claim his settlement
+        vm.prank(bob);
+        pool.claimSettlement();
 
         uint256 bobAfter = usdc.balanceOf(bob);
         assertEq(bobAfter - bobBefore, 500_000e18, "Full payout to buyer");
@@ -512,8 +525,12 @@ contract CDSPoolTest is Test {
 
         uint256 bobBefore = usdc.balanceOf(bob);
 
-        // Settle with 60% recovery → 40% loss → 200k payout
+        // Settle with 60% recovery → 40% loss → 200k payout — now pull-based
         pool.settle(0.6e18);
+
+        // Bob must claim
+        vm.prank(bob);
+        pool.claimSettlement();
 
         uint256 payout = usdc.balanceOf(bob) - bobBefore;
         assertApproxEqRel(payout, 200_000e18, 1e15, "40% loss payout");
@@ -553,7 +570,13 @@ contract CDSPoolTest is Test {
         uint256 bobBefore = usdc.balanceOf(bob);
         uint256 charlieBefore = usdc.balanceOf(charlie);
 
-        pool.settle(0); // Total loss
+        pool.settle(0); // Total loss — pull-based
+
+        // Both must claim
+        vm.prank(bob);
+        pool.claimSettlement();
+        vm.prank(charlie);
+        pool.claimSettlement();
 
         assertEq(usdc.balanceOf(bob) - bobBefore, 300_000e18, "Bob payout");
         assertEq(usdc.balanceOf(charlie) - charlieBefore, 200_000e18, "Charlie payout");
@@ -652,9 +675,13 @@ contract CDSPoolTest is Test {
         vm.startPrank(alice);
         usdc.approve(address(pool), depositAmount);
         uint256 shares = pool.deposit(depositAmount);
-
-        uint256 withdrawn = pool.withdraw(shares);
         vm.stopPrank();
+
+        // Warp past LP cooldown
+        vm.warp(block.timestamp + pool.LP_COOLDOWN() + 1);
+
+        vm.prank(alice);
+        uint256 withdrawn = pool.withdraw(shares);
 
         assertApproxEqRel(withdrawn, depositAmount, 1e15, "Value preserved");
     }
@@ -910,6 +937,10 @@ contract CDSPoolIntegrationTest is Test {
         // 5. Settle with 30% recovery (must go through factory — settle restricted to factory)
         uint256 bobBefore = usdc.balanceOf(bob);
         factory.settlePool(0, 0.3e18);
+
+        // Pull-based: bob must claim settlement
+        vm.prank(bob);
+        pool.claimSettlement();
         uint256 bobPayout = usdc.balanceOf(bob) - bobBefore;
 
         // Bob should get 500k * 70% = 350k

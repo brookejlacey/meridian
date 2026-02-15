@@ -33,6 +33,14 @@ contract ForgeFactory {
     /// @param params Vault creation parameters
     /// @return vaultAddress The deployed vault address
     function createVault(CreateVaultParams calldata params) external returns (address vaultAddress) {
+        // Validate tranche tokens are deployed contracts
+        for (uint256 i = 0; i < 3; i++) {
+            require(params.trancheTokenAddresses[i] != address(0), "ForgeFactory: zero token");
+            require(params.trancheTokenAddresses[i].code.length > 0, "ForgeFactory: token not deployed");
+        }
+        require(params.underlyingAsset != address(0), "ForgeFactory: zero underlying");
+        require(params.underlyingAsset.code.length > 0, "ForgeFactory: underlying not deployed");
+
         uint256 vaultId = vaultCount++;
 
         ForgeVault vault = new ForgeVault(

@@ -102,6 +102,11 @@ contract ShieldPricer {
 
     // --- Admin ---
 
+    function transferOwnership(address newOwner) external onlyOwner {
+        require(newOwner != address(0), "ShieldPricer: zero owner");
+        owner = newOwner;
+    }
+
     function setDefaultParams(PricingParams calldata params_) external onlyOwner {
         defaultParams = params_;
         emit DefaultParamsUpdated(params_);

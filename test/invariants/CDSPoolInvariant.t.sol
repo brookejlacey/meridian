@@ -44,6 +44,9 @@ contract CDSPoolHandler is Test {
         uint256 maxShares = pool.sharesOf(actor);
         if (maxShares == 0) return;
 
+        // Check LP cooldown
+        if (block.timestamp < pool.lastDepositTime(actor) + pool.LP_COOLDOWN()) return;
+
         shares = bound(shares, 1, maxShares);
 
         // Can't withdraw if undercollateralized

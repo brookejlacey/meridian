@@ -116,7 +116,10 @@ contract FlashRebalancer is IFlashBorrower, ReentrancyGuard {
 
         // Now we hold the tranche tokens. But withdraw checks _shares[msg.sender].
         // Since the transfer hook updated the plaintext mirrors, our address now has shares.
+        uint256 balBefore = IERC20(token).balanceOf(address(this));
         vault.withdraw(p.fromTranche, amount);
+        uint256 received = IERC20(token).balanceOf(address(this)) - balBefore;
+        require(received >= amount, "FlashRebalancer: tranche ratio mismatch");
 
         // Step 3: Repay flash loan
         uint256 repayment = amount + fee;

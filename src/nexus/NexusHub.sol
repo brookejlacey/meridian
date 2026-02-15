@@ -79,6 +79,9 @@ contract NexusHub is INexusHub, ReentrancyGuard, Ownable {
     /// @notice Registered NexusVault addresses per chain
     mapping(bytes32 chainId => address vault) public registeredVaults;
 
+    /// @notice Processed message hashes for replay protection
+    mapping(bytes32 => bool) public processedMessages;
+
     // --- Events ---
     event CollateralWithdrawn(address indexed user, address indexed asset, uint256 amount);
     event ObligationUpdated(address indexed user, uint256 newObligation);
@@ -195,6 +198,11 @@ contract NexusHub is INexusHub, ReentrancyGuard, Ownable {
             registeredVaults[sourceChainId] == sender,
             "NexusHub: unknown vault"
         );
+
+        // Replay protection: hash the full message with source context
+        bytes32 msgHash = keccak256(abi.encodePacked(sourceChainId, sender, message));
+        require(!processedMessages[msgHash], "NexusHub: message already processed");
+        processedMessages[msgHash] = true;
 
         // Decode attestation: (uint8 msgType, address user, uint256 totalValue)
         (uint8 msgType, address user, uint256 totalValue) = abi.decode(message, (uint8, address, uint256));
@@ -346,9 +354,13 @@ contract NexusHub is INexusHub, ReentrancyGuard, Ownable {
         }
     }
 
-    function _processLiquidationComplete(address user, uint256 /* proceeds */) internal {
-        // For MVP, just clear the obligation since remote collateral was liquidated
-        // In production, this would credit the liquidation proceeds
-        obligations[user] = 0;
+    function _processLiquidationComplete(address user, uint256 proceeds) internal {
+        // Reduce obligations proportionally to proceeds received
+        // If proceeds >= obligation, clear entirely; otherwise reduce by proceeds amount
+        if (proceeds >= obligations[user]) {
+            obligations[user] = 0;
+        } else {
+            obligations[user] -= proceeds;
+        }
     }
 }

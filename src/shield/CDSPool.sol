@@ -30,6 +30,7 @@ contract CDSPool is ICDSPool, ReentrancyGuard {
     // --- Constants ---
     uint256 internal constant WAD = 1e18;
     uint256 internal constant YEAR = 365 days;
+    uint256 public constant MAX_ACTIVE_POSITIONS = 200;
 
     // --- State ---
     PoolStatus public status;
@@ -55,6 +56,13 @@ contract CDSPool is ICDSPool, ReentrancyGuard {
     // Premium tracking
     uint256 public lastAccrualTime;
     mapping(uint256 posId => uint256 accrued) public positionPremiumAccrued;
+
+    // Settlement claims (pull-based pattern to prevent griefing)
+    mapping(address => uint256) public settlementClaims;
+
+    // LP deposit cooldown to prevent flash-deposit spread manipulation (M-18)
+    uint256 public constant LP_COOLDOWN = 1 hours;
+    mapping(address => uint256) public lastDepositTime;
 
     // --- Modifiers ---
     modifier onlyActive() {
@@ -108,6 +116,7 @@ contract CDSPool is ICDSPool, ReentrancyGuard {
         totalDeposits += amount;
         totalShares += sharesOut;
         shares[msg.sender] += sharesOut;
+        lastDepositTime[msg.sender] = block.timestamp;
 
         emit LiquidityDeposited(msg.sender, amount, sharesOut);
     }
@@ -126,6 +135,10 @@ contract CDSPool is ICDSPool, ReentrancyGuard {
         require(
             status == PoolStatus.Active || status == PoolStatus.Expired || status == PoolStatus.Settled,
             "CDSPool: cannot withdraw"
+        );
+        require(
+            block.timestamp >= lastDepositTime[msg.sender] + LP_COOLDOWN,
+            "CDSPool: deposit cooldown"
         );
 
         // Accrue premiums before changing pool state
@@ -149,13 +162,12 @@ contract CDSPool is ICDSPool, ReentrancyGuard {
         shares[msg.sender] -= sharesToBurn;
         totalShares -= sharesToBurn;
 
-        // Adjust totalDeposits (proportional reduction)
-        uint256 depositPortion = amountOut > totalPremiumsEarned
-            ? amountOut - totalPremiumsEarned : amountOut;
-        totalDeposits = totalDeposits > depositPortion
-            ? totalDeposits - depositPortion : 0;
-        if (amountOut > depositPortion) {
-            uint256 premiumPortion = amountOut - depositPortion;
+        // Proportionally reduce deposits and premiums based on pool composition
+        uint256 assets = totalAssets();
+        if (assets > 0) {
+            uint256 depositPortion = (amountOut * totalDeposits) / assets;
+            uint256 premiumPortion = amountOut > depositPortion ? amountOut - depositPortion : 0;
+            totalDeposits = totalDeposits > depositPortion ? totalDeposits - depositPortion : 0;
             totalPremiumsEarned = totalPremiumsEarned > premiumPortion
                 ? totalPremiumsEarned - premiumPortion : 0;
         }
@@ -204,7 +216,8 @@ contract CDSPool is ICDSPool, ReentrancyGuard {
         // Pull premium from buyer
         collateralToken.safeTransferFrom(msg.sender, address(this), premium);
 
-        // Create position
+        // Create position (bounded to prevent gas DoS in loops)
+        require(activePositionIds.length < MAX_ACTIVE_POSITIONS, "CDSPool: max positions reached");
         positionId = nextPositionId++;
         positions[positionId] = ProtectionPosition({
             buyer: msg.sender,
@@ -303,7 +316,7 @@ contract CDSPool is ICDSPool, ReentrancyGuard {
         uint256 lossRateWad = WAD - recoveryRateWad;
         uint256 totalPayout;
 
-        // Pay each active protection position
+        // Record settlement claims (pull-based to prevent griefing by malicious buyers)
         for (uint256 i = 0; i < activePositionIds.length;) {
             uint256 posId = activePositionIds[i];
             ProtectionPosition storage pos = positions[posId];
@@ -315,7 +328,7 @@ contract CDSPool is ICDSPool, ReentrancyGuard {
             payout = payout.min(available);
 
             if (payout > 0) {
-                collateralToken.safeTransfer(pos.buyer, payout);
+                settlementClaims[pos.buyer] += payout;
                 totalPayout += payout;
             }
             pos.active = false;
@@ -352,6 +365,16 @@ contract CDSPool is ICDSPool, ReentrancyGuard {
         emit PoolExpired(block.timestamp);
     }
 
+    /// @notice Claim settlement payout after a credit event (pull-based)
+    /// @return amount Amount claimed
+    function claimSettlement() external nonReentrant returns (uint256 amount) {
+        amount = settlementClaims[msg.sender];
+        require(amount > 0, "CDSPool: nothing to claim");
+        settlementClaims[msg.sender] = 0;
+        collateralToken.safeTransfer(msg.sender, amount);
+        emit SettlementClaimed(msg.sender, amount);
+    }
+
     /// @notice Buy protection on behalf of a beneficiary (for router/composability)
     /// @param notional Protection amount
     /// @param maxPremium Maximum premium willing to pay
@@ -382,6 +405,7 @@ contract CDSPool is ICDSPool, ReentrancyGuard {
 
         collateralToken.safeTransferFrom(msg.sender, address(this), premium);
 
+        require(activePositionIds.length < MAX_ACTIVE_POSITIONS, "CDSPool: max positions reached");
         positionId = nextPositionId++;
         positions[positionId] = ProtectionPosition({
             buyer: beneficiary,
