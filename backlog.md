@@ -110,39 +110,45 @@ ElGamal (eERC) supports ONLY additive homomorphism. Cannot do: multiplication of
 
 ---
 
-## Current Status (as of 2026-02-14)
+## Current Status (as of 2026-02-16)
 
-**443 tests passing** across all suites (10k-run fuzz + invariant tests). Full protocol deployed to Avalanche Fuji. Gas optimization complete (911k gas saved). 12-step E2E demo script runs successfully. Security audit complete (49 findings, 48 fixed). All high/medium priority backlog items complete.
+**692 tests passing** across all suites (10k-run fuzz + invariant tests). Full protocol deployed to Avalanche Fuji across 3 phases. Frontend live on Vercel. Gas optimization complete (911k gas saved). 12-step E2E demo script runs successfully. Security audit complete (49 findings, 48 fixed). AI layer complete (4 contracts). All high/medium priority backlog items complete.
 
 | Layer | Status | Tests | Deployed |
 |-------|--------|-------|----------|
 | Forge (structured credit) | Complete | 47 | Fuji |
 | Shield (CDS) | Complete | 73 | Fuji |
-| CDS AMM Pool | Complete | 53 | Deploy script ready |
+| CDS AMM Pool | Complete | 53 | Fuji |
 | Nexus (margin) | Complete | 68 | Fuji |
 | EncryptedTrancheToken | Complete (simulation) | 28 | N/A |
 | HedgeRouter | Complete | 19 | Fuji |
-| FlashRebalancer | Complete | 8 | Deploy script ready |
-| PoolRouter | Complete | 8 | Deploy script ready |
-| LiquidationBot | Complete | 14 | Deploy script ready |
+| FlashRebalancer | Complete | 8 | Fuji |
+| PoolRouter | Complete | 8 | Fuji |
+| LiquidationBot | Complete | 14 | Fuji |
 | Invariant Tests | Complete | 3 | N/A |
-| Frontend (Next.js) | Complete (+Strategies +Analytics) | Build passes | N/A |
-| Ponder Indexer | Complete | N/A | N/A |
+| Frontend (Next.js) | Complete (+Strategies +Analytics) | Build passes | Vercel |
+| Ponder Indexer | Complete | N/A | Local only |
 | CI/CD | Complete | N/A | GitHub Actions |
 | Demo Script | Complete (12 steps) | N/A | script/Demo.s.sol |
-| YieldVault (auto-compound) | Complete | 19 | Deploy script ready |
-| StrategyRouter (multi-vault) | Complete | 16 | Deploy script ready |
-| LPIncentiveGauge | Complete | 19 | Deploy script ready |
+| YieldVault (auto-compound) | Complete | 19 | Fuji |
+| StrategyRouter (multi-vault) | Complete | 16 | Fuji |
+| LPIncentiveGauge | Complete | 19 | Fuji |
 | Yield Integration | Complete | 3 | N/A |
 | Gas Optimization | Complete | N/A | 911k gas saved |
-| Deploy Scripts | Complete | N/A | DeployFuji + DeployPhase5 |
+| Deploy Scripts | Complete | N/A | DeployFuji + DeployPhase5 + DeployAI |
+| Access Control Hardening | Complete | ~239 | N/A |
+| AI Layer | Complete | 75 + 5 integration | Fuji |
+| WalletConnect | Complete | N/A | Configured |
+| Vercel Deployment | Complete | N/A | frontend-pink-theta-53.vercel.app |
+
+**Deployed contract count**: 35+ on Fuji across 3 phases (Phase 1 core, Phase 5 AMM+yield, AI layer)
 
 **Next recommended priorities** (in order):
-1. **Broadcast DeployPhase5.s.sol to Fuji** — `forge script script/DeployPhase5.s.sol --rpc-url fuji --broadcast`, update frontend .env.local
-2. **Secondary market for tranche tokens** (#9) — DEX integration, enables real price discovery
-3. **Security audit prep** (#12) — Slither/Mythril static analysis, documentation review
-4. **Real eERC integration** — requires off-chain ZK proof generation infrastructure (biggest lift)
-5. **WalletConnect project ID** — replace placeholder in frontend for demo-ready state
+1. **Buy domain + map to Vercel** — e.g. meridianprotocol.com, add in Vercel Settings > Domains
+2. **Record video pitch** — see PITCH.md for structure, talking points, demo guidance
+3. **Deploy Ponder indexer** — Railway/Render for live GraphQL, update NEXT_PUBLIC_INDEXER_URL
+4. **Redeploy ShieldPricer** — current on-chain version is pre-AI, needs redeployment to wire AIRiskOracle
+5. **Real eERC integration** — requires off-chain ZK proof generation infrastructure (biggest lift)
 
 ---
 
@@ -258,7 +264,7 @@ ElGamal (eERC) supports ONLY additive homomorphism. Cannot do: multiplication of
 - [x] Full user story executable via UI (Forge + Shield + Nexus + HedgeRouter)
 - [x] Ponder indexer integrated (GraphQL replaces O(N) RPC calls)
 - [x] HedgePanel on vault detail page (atomic invest + hedge)
-- [ ] Demo-ready (needs WalletConnect project ID, testnet USDC faucet flow)
+- [x] Demo-ready (WalletConnect configured, frontend deployed to Vercel)
 
 ---
 
@@ -283,6 +289,13 @@ ElGamal (eERC) supports ONLY additive homomorphism. Cannot do: multiplication of
 - ~~Dynamic tranche ratios~~ **DONE** — ForgeVault.adjustTrancheRatios() with bounds validation + 18 tests
 - ~~Liquidation insurance pool~~ **DONE** — InsurancePool backstop for NexusHub + 30 tests
 - ~~Secondary market router~~ **DONE** — SecondaryMarketRouter + MockDEXRouter + frontend /trade page + 17 tests
+- ~~Access control hardening~~ **DONE** — Two-step ownership, Pausable, role authorization across all contracts. 617→692 tests (with AI).
+- ~~AI layer~~ **DONE** — AIRiskOracle (circuit breaker + staleness), AIStrategyOptimizer (governance gating), AIKeeper (prioritized liquidation), AICreditEventDetector (timelock/veto). 75 tests + 5 integration.
+- ~~Phase 5 deployment~~ **DONE** — All AMM/yield/composability contracts broadcast to Fuji
+- ~~AI deployment~~ **DONE** — All 4 AI contracts broadcast to Fuji
+- ~~WalletConnect~~ **DONE** — Project ID configured (Reown)
+- ~~Vercel deployment~~ **DONE** — frontend-pink-theta-53.vercel.app
+- ~~PITCH.md~~ **DONE** — Plain-English product guide, video structure, glossary
 
 ### High Priority — COMPLETE
 - ~~9. Secondary market for tranche tokens~~ **DONE** — SecondaryMarketRouter (swap, swapAndReinvest, swapAndHedge) + MockDEXRouter + frontend /trade page + 17 tests
@@ -293,7 +306,7 @@ ElGamal (eERC) supports ONLY additive homomorphism. Cannot do: multiplication of
 - ~~10. Dynamic tranche ratios~~ **DONE** — ForgeVault.adjustTrancheRatios() with bounds validation (senior 50-85%, mezz 10-35%, equity 5-20%) + 18 tests
 
 ### Lower Priority (v2 features)
-- 4. Credit scoring oracle (originator reputation → pricing)
+- ~~4. Credit scoring oracle~~ — **effectively DONE** via AIRiskOracle (AI-powered credit scoring per vault)
 - 5. Proof of reserves (cryptographic solvency proof)
 - 7. Institutional compliance mode (full auditor visibility deployment)
 - 8. Multi-auditor support (different auditors for different aspects)
@@ -303,6 +316,9 @@ ElGamal (eERC) supports ONLY additive homomorphism. Cannot do: multiplication of
 ### Infrastructure (when ready for production)
 - **Real eERC integration** — requires off-chain ZK proof generation infrastructure, client-side WASM SDK, keeper for contract-initiated mints
 - **Real Teleporter integration** — requires Avalanche L1 creation, AWM relayer setup, resolving 0.8.25/0.8.27 version conflict
-- **WalletConnect project ID** — replace placeholder in frontend/.env.local
+- ~~**WalletConnect project ID**~~ — **DONE** — Reown project ID configured
 - **Testnet faucet flow** — document or build a faucet for MockUSDC on Fuji
 - ~~**CI/CD pipeline**~~ — **DONE** — GitHub Actions for Solidity build+test+gas + Frontend build+typecheck
+- **Deploy Ponder indexer** — Railway/Render for live GraphQL API (currently localhost only)
+- **Redeploy ShieldPricer** — on-chain version is pre-AI, needs redeployment to wire setRiskOracle()
+- **Custom domain** — buy and map to Vercel deployment
