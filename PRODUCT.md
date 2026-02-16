@@ -2,7 +2,7 @@
 
 ## The Problem
 
-Traditional credit markets — corporate bonds, asset-backed securities, structured credit — are a **$130+ trillion market** that remains almost entirely off-chain. The few DeFi protocols that touch credit (Maple, Goldfinch, Centrifuge) offer simple lending pools with no tranching, no hedging, and no cross-chain capital efficiency. They're essentially unsecured lending with a website.
+Global debt markets total **$315 trillion** (IIF, 2024). The structured credit slice alone — CLOs, MBS, ABS — is a **$13 trillion market** that remains almost entirely off-chain. The few DeFi protocols that touch credit (Maple, Goldfinch, Centrifuge) offer simple lending pools with no tranching, no hedging, and no cross-chain capital efficiency. They're essentially unsecured lending with a website.
 
 Meanwhile, institutional credit structuring (CLOs, CDOs, ABS) involves:
 - **Tranching**: splitting a credit pool into risk layers (senior gets paid first, equity absorbs losses first)
@@ -16,10 +16,13 @@ None of this exists onchain in a composable, unified protocol. Meridian builds a
 
 ## What Meridian Is
 
-Meridian is an **onchain institutional credit protocol on Avalanche** with four composable layers:
+Meridian is an **onchain institutional credit protocol on Avalanche** with six composable layers:
 
 ```
 ┌─────────────────────────────────────────────────────────┐
+│                      AI LAYER                           │
+│  AIRiskOracle │ AIStrategyOptimizer │ AIKeeper │ Detector│
+├─────────────────────────────────────────────────────────┤
 │                    YIELD LAYER                          │
 │  YieldVault (ERC4626) │ StrategyRouter │ LPIncentiveGauge│
 ├─────────────────────────────────────────────────────────┤
@@ -197,19 +200,72 @@ Synthetix StakingRewards-style liquidity mining for CDS pool LPs. Governance fun
 
 ---
 
+## Layer 6: AI Layer — Intelligent Protocol Automation
+
+The AI layer is the brain on top of the protocol. All four contracts follow the same trust model: **AI computes off-chain, proposes on-chain, governance/timelocks guard execution.** No AI model has unilateral control over funds — every action is bounded by circuit breakers, rate limits, timelocks, and human veto.
+
+### AIRiskOracle — Credit Scoring Engine
+
+Off-chain AI models analyze credit quality (market data, on-chain metrics, macro signals) and publish risk scores on-chain:
+
+- **Credit score** (0-1000), **default probability** (0-100% as WAD), **risk tier** (AAA to Default)
+- **Circuit breaker**: The PD (probability of default) can only change by `maxScoreChange` (e.g., 10%) per update. If a compromised AI tries to crash all scores from 2% to 100%, the circuit breaker blocks it.
+- **Staleness protection**: Scores expire after `maxScoreAge` (e.g., 24 hours). Stale reads revert. Consumers always get fresh data or fail safely.
+- **Model hash tracking**: Every score update records which AI model version produced it — full auditability.
+
+**Integration**: ShieldPricer reads from AIRiskOracle to adjust CDS spreads. A vault with 5% default probability gets wider spreads than one with 0.5%. Uses `try/catch` — if the oracle is stale or unavailable, pricing gracefully falls back to defaults.
+
+### AIStrategyOptimizer — Governance-Gated Strategy Proposals
+
+AI analyzes yield curves, risk profiles, and market conditions to propose optimal strategies:
+
+- AI agent calls `proposeStrategy(name, vaults, allocations, confidence, expectedAPY, risk, rationale)`
+- Governance reviews, then calls `approveProposal(id)` + `executeProposal(id)` to create the strategy on StrategyRouter
+- Proposals auto-expire after `proposalExpiry` (e.g., 7 days) — stale proposals don't accumulate
+- Minimum confidence threshold — low-conviction proposals are rejected on submission
+- Advisory `recommendRebalance()` — AI can suggest rebalances without triggering execution
+
+**Trust chain**: Human governance -> AIStrategyOptimizer -> StrategyRouter. The AI never touches funds directly.
+
+### AIKeeper — Intelligent Liquidation Prioritization
+
+Instead of blindly liquidating accounts in submission order, AIKeeper uses off-chain ML models to prioritize:
+
+- AI monitor submits priority scores for each margin account (estimated shortfall, urgency flag)
+- `getTopAccounts(n)` returns the N most critical accounts for immediate liquidation
+- `getFlaggedAccounts()` returns accounts the AI has flagged as imminently unhealthy
+- Batch operations for gas efficiency: `batchUpdatePriorities()` for bulk score updates
+
+**Why it matters**: In a cascading credit event, you want to liquidate the most dangerous positions first. Random ordering can leave the protocol exposed to the biggest shortfalls while wasting gas on small ones.
+
+### AICreditEventDetector — AI-Powered Default Detection
+
+AI monitors market signals, on-chain activity, and external data to detect credit events before they're manually reported:
+
+- **Auto-execute path**: High confidence (>= 90%) Impairment events are reported to CreditEventOracle immediately
+- **Timelock path**: Lower confidence or Default events are queued with a timelock (e.g., 6 hours). During this window, governance can veto false positives.
+- **Rate limiting**: Maximum N reports per vault per time window — a compromised AI can't spam the oracle
+- **Governance controls**: `vetoReport()` stops false positives, `forceExecute()` accelerates true positives
+
+**Safety design**: Default events (total loss, most severe) are ALWAYS timelocked regardless of confidence — governance always gets a veto window on the most impactful actions.
+
+---
+
 ## The Full Flywheel
 
 Here's how it all composes for an institutional user:
 
 1. **Originator** creates a structured credit vault via ForgeFactory
-2. **Investor** deposits USDC via `HedgeRouter.investAndHedge()` — atomically gets senior tranche exposure + CDS protection
-3. **LP** deposits USDC into CDSPool, earns premium yield + gauge rewards from LPIncentiveGauge
-4. **Investor** deposits tranche tokens as collateral in NexusHub (85% risk weight for senior)
-5. **Investor** borrows against margin to take more positions
-6. **YieldVault** auto-compounds tranche yield, share price rises
-7. **StrategyRouter** lets investor rebalance across risk profiles without unwinding
-8. If credit event occurs: Oracle triggers, CDS pools settle, margin accounts liquidated, waterfall distributes recovery
-9. **LiquidationBot** executes the full sequence permissionlessly
+2. **AIRiskOracle** scores the vault's credit quality — CDS spreads automatically reflect the risk
+3. **Investor** deposits USDC via `HedgeRouter.investAndHedge()` — atomically gets senior tranche exposure + CDS protection
+4. **LP** deposits USDC into CDSPool, earns premium yield + gauge rewards from LPIncentiveGauge
+5. **Investor** deposits tranche tokens as collateral in NexusHub (85% risk weight for senior)
+6. **Investor** borrows against margin to take more positions
+7. **YieldVault** auto-compounds tranche yield, share price rises
+8. **AIStrategyOptimizer** proposes rebalancing strategies — governance approves, StrategyRouter executes
+9. **AICreditEventDetector** monitors for defaults — auto-reports with confidence, governance veto window
+10. If credit event occurs: Oracle triggers, CDS pools settle, **AIKeeper** prioritizes liquidations by urgency
+11. **LiquidationBot** executes the full sequence permissionlessly
 
 ---
 
@@ -239,14 +295,17 @@ The four-zone architecture and Minter-Knows pattern mean the protocol works iden
 ### 7. Institutional-grade risk management
 Tier-based risk weights, cross-chain margin, automated liquidation cascades, credit event oracles with threshold-based auto-triggering — this is modeled on how institutional credit actually works, not simplified DeFi lending.
 
+### 8. AI with guardrails, not AI with god mode
+Every AI component follows the same trust model: AI proposes, smart contracts constrain, governance approves. Circuit breakers prevent score manipulation. Timelocks give humans veto windows. Rate limits prevent spam. Model hashes provide auditability. This is how AI should integrate with DeFi — as a tool that augments human decision-making, not one that replaces it.
+
 ---
 
 ## Technical Stats
 
 | Metric | Value |
 |--------|-------|
-| Solidity contracts | 26 (core) + mocks + interfaces |
-| Test coverage | 378 tests (0 failures) |
+| Solidity contracts | 30+ (core) + 4 AI contracts + mocks + interfaces |
+| Test coverage | 692 tests (0 failures) |
 | Fuzz test depth | 10,000 runs per fuzz test |
 | Invariant tests | 3 properties, 256 runs each, ~3,840 calls |
 | Gas optimization | 911,671 gas saved via unchecked blocks |
@@ -254,8 +313,8 @@ Tier-based risk weights, cross-chain margin, automated liquidation cascades, cre
 | wagmi hooks | 12 |
 | Indexer handlers | 7 event handler files |
 | Demo script | 12-step end-to-end lifecycle walkthrough |
-| Deploy scripts | 3 (DeployFuji, DeployPhase5, DeployHedgeRouter) |
-| Lines of Solidity | ~4,500+ |
+| Deploy scripts | 4 (DeployFuji, DeployPhase5, DeployHedgeRouter, DeployAI) |
+| Lines of Solidity | ~5,500+ |
 | Deployed on | Avalanche Fuji (C-Chain), block 51648911 |
 
 ### Gas Benchmarks
@@ -323,12 +382,13 @@ Phase 5 contracts (CDSPoolFactory, PoolRouter, FlashRebalancer, LiquidationBot, 
 | Routers | `src/HedgeRouter.sol`, `src/PoolRouter.sol`, `src/FlashRebalancer.sol` |
 | Keeper | `src/LiquidationBot.sol` |
 | Yield | `src/yield/YieldVault.sol`, `src/yield/YieldVaultFactory.sol`, `src/yield/StrategyRouter.sol`, `src/yield/LPIncentiveGauge.sol` |
+| AI | `src/ai/AIRiskOracle.sol`, `src/ai/AIStrategyOptimizer.sol`, `src/ai/AIKeeper.sol`, `src/ai/AICreditEventDetector.sol` |
 | Libraries | `src/libraries/MeridianMath.sol`, `src/libraries/WaterfallDistributor.sol`, `src/libraries/PremiumEngine.sol`, `src/libraries/MarginAccount.sol`, `src/libraries/BondingCurve.sol` |
-| Interfaces | `src/interfaces/` (IForgeVault, ICDSPool, INexusHub, IYieldVault, etc.) |
+| Interfaces | `src/interfaces/` (IForgeVault, ICDSPool, INexusHub, IYieldVault, IAIRiskOracle, IAIKeeper, etc.) |
 | Mocks | `src/mocks/` (MockEERC, MockTeleporter, MockOracle, MockYieldSource, MockFlashLender) |
 | Privacy | `src/forge/EncryptedTrancheToken.sol` |
-| Tests | `test/forge/`, `test/shield/`, `test/nexus/`, `test/yield/`, `test/invariants/` |
-| Deploy | `script/DeployFuji.s.sol`, `script/DeployPhase5.s.sol`, `script/DeployHedgeRouter.s.sol` |
+| Tests | `test/forge/`, `test/shield/`, `test/nexus/`, `test/yield/`, `test/ai/`, `test/invariants/` |
+| Deploy | `script/DeployFuji.s.sol`, `script/DeployPhase5.s.sol`, `script/DeployHedgeRouter.s.sol`, `script/DeployAI.s.sol` |
 | Demo | `script/Demo.s.sol` (12-step end-to-end walkthrough) |
 | Frontend | `frontend/src/app/` (7 pages), `frontend/src/hooks/` (12 hooks) |
 | Indexer | `indexer/src/` (7 handler files), `indexer/ponder.config.ts` |
@@ -340,7 +400,7 @@ Phase 5 contracts (CDSPoolFactory, PoolRouter, FlashRebalancer, LiquidationBot, 
 ```bash
 # Contracts
 forge build                              # Compile all contracts
-forge test                               # Run all 378 tests
+forge test                               # Run all 692 tests
 forge test --match-contract <Name> -vv   # Specific test suite
 forge script script/Demo.s.sol -vv       # Run 12-step E2E demo
 

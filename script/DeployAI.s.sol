@@ -41,9 +41,10 @@ contract DeployAI is Script {
         strategyRouter = vm.envOr("STRATEGY_ROUTER", address(0));
         shieldPricer = vm.envOr("SHIELD_PRICER", address(0));
 
-        address deployer = msg.sender;
+        uint256 deployerPrivateKey = vm.envUint("DEPLOYER_PRIVATE_KEY");
+        address deployer = vm.addr(deployerPrivateKey);
 
-        vm.startBroadcast();
+        vm.startBroadcast(deployerPrivateKey);
 
         _deployRiskOracle(deployer);
         _deployStrategyOptimizer(deployer);
