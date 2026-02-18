@@ -18,6 +18,12 @@ indexer/.env.local
 
 # Claude Code
 .claude/
+CLAUDE.md
+
+# Internal docs (not for hackathon viewers)
+backlog.md
+PITCH.md
+AUDIT_BACKLOG.md
 
 # Node modules
 node_modules/
